@@ -30,5 +30,9 @@
   ],
   "styles": [
     "styles.css"
+  ],
+  "languages": [
+    { "lang": "ru", "name": "Russian", "path": "lang/ru.json" },
+    { "lang": "en", "name": "English", "path": "lang/en.json" }
   ]
 }

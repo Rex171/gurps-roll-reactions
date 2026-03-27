@@ -1,30 +1,31 @@
 (() => {
     const MODULE_ID = GRR_Shared.MODULE_ID;
     const esc = GRR_Shared.escapeHTML;
+    const loc = (key) => game.i18n.localize(key);
+    const fmt = (key, data) => game.i18n.format(key, data);
 
-    // ШАБЛОН: Иконка теста (устанавливается только в заголовки секций)
     const testBtnHtml = (section) => `
-        <a class="grr-test-btn" title="Тест реакции" data-section="${section}" style="color: #555; margin-left: 8px; cursor: pointer; transition: color 0.2s; font-size: 1.1em;"><i class="fas fa-dice"></i></a>
+        <a class="grr-test-btn" title="${loc("GRR.sheet.testReaction")}" data-section="${section}" style="color: #555; margin-left: 8px; cursor: pointer; transition: color 0.2s; font-size: 1.1em;"><i class="fas fa-dice"></i></a>
     `;
 
     Hooks.on("getActorSheetHeaderButtons", (sheet, buttons) => {
         if (game.system.id !== "gurps") return;
-        buttons.unshift({ label: "Реакции", class: "gurps-media-btn", icon: "fas fa-film", onclick: () => openMediaManager(sheet.actor) });
+        buttons.unshift({ label: loc("GRR.sheet.button"), class: "gurps-media-btn", icon: "fas fa-film", onclick: () => openMediaManager(sheet.actor) });
     });
 
     function buildUniversalRow(trigger, urls) {
         return `
         <div class="gurps-media-row" style="border: 1px solid #777; padding: 8px; margin-bottom: 8px; border-radius: 5px; background: rgba(0,0,0,0.05); transition: background 0.2s;">
             <div style="display: flex; margin-bottom: 5px; align-items: center;">
-                <b style="flex: 0 0 100px;">Триггер:</b>
-                <input type="text" class="trigger-name" value="${esc(trigger)}" placeholder="DX, Dodge" style="flex: 1;">
+                <b style="flex: 0 0 100px;">${loc("GRR.sheet.triggerLabel")}</b>
+                <input type="text" class="trigger-name" value="${esc(trigger)}" placeholder="${loc("GRR.sheet.triggerPlaceholder")}" style="flex: 1;">
                 ${testBtnHtml('universal')}
-                <a class="remove-media-btn" style="color: darkred; margin-left: 10px; cursor: pointer;" title="Удалить"><i class="fas fa-trash"></i></a>
+                <a class="remove-media-btn" style="color: darkred; margin-left: 10px; cursor: pointer;" title="${loc("GRR.common.delete")}"><i class="fas fa-trash"></i></a>
             </div>
-            <div style="display: flex; margin-bottom: 3px; align-items: center;"><label style="flex: 0 0 100px;">Обычный:</label><input type="text" class="trigger-def" value="${esc(urls.defaultGif)}" placeholder="Сработает на всё, если нет других" style="flex: 1;"></div>
-            <div style="display: flex; margin-bottom: 3px; align-items: center;"><label style="flex: 0 0 100px; color: #b85c00;">Провал:</label><input type="text" class="trigger-f" value="${esc(urls.failGif)}" placeholder="Опционально" style="flex: 1;"></div>
-            <div style="display: flex; margin-bottom: 3px; align-items: center;"><label style="flex: 0 0 100px; color: green;">Крит Успех:</label><input type="text" class="trigger-cs" value="${esc(urls.critSuccessGif)}" placeholder="Опционально" style="flex: 1;"></div>
-            <div style="display: flex; margin-bottom: 3px; align-items: center;"><label style="flex: 0 0 100px; color: red;">Крит Провал:</label><input type="text" class="trigger-cf" value="${esc(urls.critFailGif)}" placeholder="Опционально" style="flex: 1;"></div>
+            <div style="display: flex; margin-bottom: 3px; align-items: center;"><label style="flex: 0 0 100px;">${loc("GRR.sheet.result.default")}</label><input type="text" class="trigger-def" value="${esc(urls.defaultGif)}" placeholder="${loc("GRR.sheet.result.defaultHint")}" style="flex: 1;"></div>
+            <div style="display: flex; margin-bottom: 3px; align-items: center;"><label style="flex: 0 0 100px; color: #b85c00;">${loc("GRR.sheet.result.fail")}</label><input type="text" class="trigger-f" value="${esc(urls.failGif)}" placeholder="${loc("GRR.common.optional")}" style="flex: 1;"></div>
+            <div style="display: flex; margin-bottom: 3px; align-items: center;"><label style="flex: 0 0 100px; color: green;">${loc("GRR.sheet.result.critSuccess")}</label><input type="text" class="trigger-cs" value="${esc(urls.critSuccessGif)}" placeholder="${loc("GRR.common.optional")}" style="flex: 1;"></div>
+            <div style="display: flex; margin-bottom: 3px; align-items: center;"><label style="flex: 0 0 100px; color: red;">${loc("GRR.sheet.result.critFail")}</label><input type="text" class="trigger-cf" value="${esc(urls.critFailGif)}" placeholder="${loc("GRR.common.optional")}" style="flex: 1;"></div>
         </div>`;
     }
 
@@ -34,21 +35,21 @@
         for (const [trigger, urls] of Object.entries(currentFlags)) rowsHtml += buildUniversalRow(trigger, urls);
 
         new Dialog({
-            title: `Реакции: ${actor.name}`,
+            title: fmt("GRR.sheet.universalTitle", { name: actor.name }),
             content: `
-                <div style="margin-bottom: 10px;"><p style="font-size: 0.9em; color: #444;">Реакции для атрибутов, вторичных характеристик, преимуществ и недостатков и т.п.</p></div>
+                <div style="margin-bottom: 10px;"><p style="font-size: 0.9em; color: #444;">${loc("GRR.sheet.universalDesc")}</p></div>
                 <div id="gurps-media-list" style="max-height: 400px; overflow-y: auto; padding-right: 5px; margin-bottom: 10px;">${rowsHtml}</div>
-                <div style="text-align: center; margin-bottom: 10px;"><button id="add-gurps-media"><i class="fas fa-plus"></i> Добавить</button></div>
+                <div style="text-align: center; margin-bottom: 10px;"><button id="add-gurps-media"><i class="fas fa-plus"></i> ${loc("GRR.common.add")}</button></div>
             `,
             render: (html) => {
                 const $html = $(html);
                 $html.find('#add-gurps-media').click((e) => { e.preventDefault(); $html.find('#gurps-media-list').append(buildUniversalRow("", {})); });
                 $html.on('click', '.remove-media-btn', function(e) { e.preventDefault(); $(this).closest('.gurps-media-row').fadeOut(200, function() { $(this).remove(); }); });
-                
+
                 $html.on('click', '.grr-test-btn', function(e) {
                     e.preventDefault();
                     const row = $(this).closest('.gurps-media-row');
-                    const title = row.find('.trigger-name').val() || "Без названия";
+                    const title = row.find('.trigger-name').val() || loc("GRR.common.unnamed");
                     const urls = {
                         def: row.find('.trigger-def').val(),
                         f: row.find('.trigger-f').val(),
@@ -60,7 +61,7 @@
             },
             buttons: {
                 save: {
-                    icon: '<i class="fas fa-save"></i>', label: "Сохранить",
+                    icon: '<i class="fas fa-save"></i>', label: loc("GRR.common.save"),
                     callback: async (html) => {
                         const newFlags = {};
                         $(html).find('.gurps-media-row').each(function() {
@@ -91,7 +92,7 @@
             const skillNameText = descDiv.find('.tooltip').text().trim();
             if (!skillNameText) return;
 
-            const btn = $(`<a class="gurps-gif-settings-btn" title="Реакции навыка" style="margin-left: 8px; color: #8b0000; cursor: pointer; flex-shrink: 0; transition: all 0.2s;"><i class="fas fa-image"></i></a>`);
+            const btn = $(`<a class="gurps-gif-settings-btn" title="${loc("GRR.sheet.skill.tooltip")}" style="margin-left: 8px; color: #8b0000; cursor: pointer; flex-shrink: 0; transition: all 0.2s;"><i class="fas fa-image"></i></a>`);
             const dataKey = $(element).attr('data-key');
             const skillData = foundry.utils.getProperty(actor, dataKey);
             const skillLevel = skillData?.level ?? 10;
@@ -102,16 +103,16 @@
                 const myGifs = allSkillGifs[skillNameText] || {};
 
                 new Dialog({
-                    title: "Реакции навыка",
+                    title: loc("GRR.sheet.skill.title"),
                     content: `
                         <div style="margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between;">
-                            <span>Навык: <b>${esc(skillNameText)}</b></span>
+                            <span>${loc("GRR.sheet.skill.label")} <b>${esc(skillNameText)}</b></span>
                             ${testBtnHtml('skill')}
                         </div>
-                        <div style="display: flex; align-items: center; margin-bottom: 5px;"><label style="flex: 1;">Обычный:</label><input type="text" id="gif-def" value="${esc(myGifs.defaultGif)}" style="flex: 2;"></div>
-                        <div style="display: flex; align-items: center; margin-bottom: 10px;"><label style="flex: 1; color: #b85c00;">Провал:</label><input type="text" id="gif-f" value="${esc(myGifs.failGif)}" placeholder="Опционально" style="flex: 2;"></div>
-                        <div style="display: flex; align-items: center; margin-bottom: 5px;"><label style="flex: 1; color: green;">Крит Успех:</label><input type="text" id="gif-cs" value="${esc(myGifs.critSuccessGif)}" placeholder="Опционально" style="flex: 2;"></div>
-                        <div style="display: flex; align-items: center; margin-bottom: 15px;"><label style="flex: 1; color: red;">Крит Провал:</label><input type="text" id="gif-cf" value="${esc(myGifs.critFailGif)}" placeholder="Опционально" style="flex: 2;"></div>
+                        <div style="display: flex; align-items: center; margin-bottom: 5px;"><label style="flex: 1;">${loc("GRR.sheet.result.default")}</label><input type="text" id="gif-def" value="${esc(myGifs.defaultGif)}" style="flex: 2;"></div>
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;"><label style="flex: 1; color: #b85c00;">${loc("GRR.sheet.result.fail")}</label><input type="text" id="gif-f" value="${esc(myGifs.failGif)}" placeholder="${loc("GRR.common.optional")}" style="flex: 2;"></div>
+                        <div style="display: flex; align-items: center; margin-bottom: 5px;"><label style="flex: 1; color: green;">${loc("GRR.sheet.result.critSuccess")}</label><input type="text" id="gif-cs" value="${esc(myGifs.critSuccessGif)}" placeholder="${loc("GRR.common.optional")}" style="flex: 2;"></div>
+                        <div style="display: flex; align-items: center; margin-bottom: 15px;"><label style="flex: 1; color: red;">${loc("GRR.sheet.result.critFail")}</label><input type="text" id="gif-cf" value="${esc(myGifs.critFailGif)}" placeholder="${loc("GRR.common.optional")}" style="flex: 2;"></div>
                     `,
                     render: (dHtml) => {
                         $(dHtml).find('.grr-test-btn').click(function(e) {
@@ -123,7 +124,7 @@
                     },
                     buttons: {
                         save: {
-                            icon: '<i class="fas fa-save"></i>', label: "Сохранить",
+                            icon: '<i class="fas fa-save"></i>', label: loc("GRR.common.save"),
                             callback: async (dHtml) => {
                                 const updatedGifs = foundry.utils.mergeObject(allSkillGifs, {
                                     [skillNameText]: { defaultGif: $(dHtml).find('#gif-def').val().trim(), failGif: $(dHtml).find('#gif-f').val().trim(), critSuccessGif: $(dHtml).find('#gif-cs').val().trim(), critFailGif: $(dHtml).find('#gif-cf').val().trim() }
@@ -140,12 +141,12 @@
 
         // Обработка оружия
         $html.find('.meleedraggable, .rangeddraggable, div[data-key^="system.melee"], div[data-key^="system.ranged"]').each((_index, element) => {
-            const descDiv = $(element).find('.desc').first(); 
+            const descDiv = $(element).find('.desc').first();
             if (!descDiv.length || descDiv.find('.gurps-wpn-settings-btn').length > 0) return;
             const weaponNameText = descDiv.find('.tooltip').first().text().trim();
             if (!weaponNameText) return;
 
-            const btn = $(`<a class="gurps-wpn-settings-btn" title="Реакции оружия" style="margin-left: 6px; color: #1e4a8b; font-size: 1.1em; cursor: pointer; flex-shrink: 0; transition: all 0.2s;"><i class="fas fa-khanda"></i></a>`);
+            const btn = $(`<a class="gurps-wpn-settings-btn" title="${loc("GRR.sheet.weapon.tooltip")}" style="margin-left: 6px; color: #1e4a8b; font-size: 1.1em; cursor: pointer; flex-shrink: 0; transition: all 0.2s;"><i class="fas fa-khanda"></i></a>`);
             descDiv.find('.tooltip').first().after(btn);
 
             btn.click(async (e) => {
@@ -155,62 +156,62 @@
                 const myGifs = foundry.utils.mergeObject(defaultStructure, allWpnGifs[weaponNameText] || {});
 
                 new Dialog({
-                    title: "Реакции оружия",
+                    title: loc("GRR.sheet.weapon.title"),
                     content: `
                     <div style="margin-bottom: 10px; text-align: center; border-bottom: 1px solid #ccc; padding-bottom: 5px;"><b>${esc(weaponNameText)}</b></div>
-                    
+
                     <div style="margin-bottom: 15px; background: rgba(0,0,0,0.02); padding: 8px; border-radius: 5px; border-left: 4px solid #8b0000;">
-                        <b style="color: #660000; display: flex; align-items: center;"><i class="fas fa-fist-raised" style="margin-right: 5px;"></i> Бросок Атаки ${testBtnHtml('atk')}</b>
+                        <b style="color: #660000; display: flex; align-items: center;"><i class="fas fa-fist-raised" style="margin-right: 5px;"></i> ${loc("GRR.sheet.weapon.attack")} ${testBtnHtml('atk')}</b>
                         <div style="display: flex; margin-top: 5px;">
-                            <input type="text" id="atk-def" value="${esc(myGifs.atk.def)}" placeholder="Успех (или всё)" style="flex: 1; margin-right: 3px;">
-                            <input type="text" id="atk-f" value="${esc(myGifs.atk.f)}" placeholder="Провал" style="flex: 1; margin-left: 3px;">
+                            <input type="text" id="atk-def" value="${esc(myGifs.atk.def)}" placeholder="${loc("GRR.sheet.weapon.successPlaceholder")}" style="flex: 1; margin-right: 3px;">
+                            <input type="text" id="atk-f" value="${esc(myGifs.atk.f)}" placeholder="${loc("GRR.sheet.weapon.failPlaceholder")}" style="flex: 1; margin-left: 3px;">
                         </div>
-                        <div style="margin-top: 5px;"><label><input type="checkbox" id="atk-crit-chk" ${myGifs.atk.useCrit ? "checked" : ""}> <i>Критические броски?</i></label></div>
+                        <div style="margin-top: 5px;"><label><input type="checkbox" id="atk-crit-chk" ${myGifs.atk.useCrit ? "checked" : ""}> <i>${loc("GRR.sheet.weapon.criticals")}</i></label></div>
                         <div id="atk-crit-box" style="display: none; margin-top: 5px; padding-left: 10px;">
-                            <div style="display: flex; align-items: center; margin-bottom: 3px;"><label style="flex: 0 0 80px; color: green;">Успех:</label><input type="text" id="atk-cs" value="${esc(myGifs.atk.cs)}" placeholder="Опционально" style="flex: 1;"></div>
-                            <div style="display: flex; align-items: center;"><label style="flex: 0 0 80px; color: red;">Провал:</label><input type="text" id="atk-cf" value="${esc(myGifs.atk.cf)}" placeholder="Опционально" style="flex: 1;"></div>
+                            <div style="display: flex; align-items: center; margin-bottom: 3px;"><label style="flex: 0 0 80px; color: green;">${loc("GRR.sheet.result.success")}</label><input type="text" id="atk-cs" value="${esc(myGifs.atk.cs)}" placeholder="${loc("GRR.common.optional")}" style="flex: 1;"></div>
+                            <div style="display: flex; align-items: center;"><label style="flex: 0 0 80px; color: red;">${loc("GRR.sheet.result.fail")}</label><input type="text" id="atk-cf" value="${esc(myGifs.atk.cf)}" placeholder="${loc("GRR.common.optional")}" style="flex: 1;"></div>
                         </div>
                     </div>
 
                     <div style="margin-bottom: 15px; background: rgba(0,0,0,0.02); padding: 8px; border-radius: 5px; border-left: 4px solid #006600;">
                         <label style="font-weight: bold; color: #004400; cursor: pointer; display: flex; align-items: center;">
-                            <input type="checkbox" id="parry-en-chk" ${myGifs.parry.enabled ? "checked" : ""}> 
-                            <i class="fas fa-shield-alt" style="margin-left:5px; margin-right:3px;"></i> Есть Парирование? ${testBtnHtml('parry')}
+                            <input type="checkbox" id="parry-en-chk" ${myGifs.parry.enabled ? "checked" : ""}>
+                            <i class="fas fa-shield-alt" style="margin-left:5px; margin-right:3px;"></i> ${loc("GRR.sheet.weapon.hasParry")} ${testBtnHtml('parry')}
                         </label>
                         <div id="parry-main-box" style="display: none; margin-top: 5px;">
                             <div style="display: flex;">
-                                <input type="text" id="parry-def" value="${esc(myGifs.parry.def)}" placeholder="Успех (или всё)" style="flex: 1; margin-right: 3px;">
-                                <input type="text" id="parry-f" value="${esc(myGifs.parry.f)}" placeholder="Провал" style="flex: 1; margin-left: 3px;">
+                                <input type="text" id="parry-def" value="${esc(myGifs.parry.def)}" placeholder="${loc("GRR.sheet.weapon.successPlaceholder")}" style="flex: 1; margin-right: 3px;">
+                                <input type="text" id="parry-f" value="${esc(myGifs.parry.f)}" placeholder="${loc("GRR.sheet.weapon.failPlaceholder")}" style="flex: 1; margin-left: 3px;">
                             </div>
-                            <div style="margin-top: 5px;"><label><input type="checkbox" id="parry-crit-chk" ${myGifs.parry.useCrit ? "checked" : ""}> <i>Критические броски?</i></label></div>
+                            <div style="margin-top: 5px;"><label><input type="checkbox" id="parry-crit-chk" ${myGifs.parry.useCrit ? "checked" : ""}> <i>${loc("GRR.sheet.weapon.criticals")}</i></label></div>
                             <div id="parry-crit-box" style="display: none; margin-top: 5px; padding-left: 10px;">
-                                <div style="display: flex; align-items: center; margin-bottom: 3px;"><label style="flex: 0 0 80px; color: green;">Успех:</label><input type="text" id="parry-cs" value="${esc(myGifs.parry.cs)}" placeholder="Опционально" style="flex: 1;"></div>
-                                <div style="display: flex; align-items: center;"><label style="flex: 0 0 80px; color: red;">Провал:</label><input type="text" id="parry-cf" value="${esc(myGifs.parry.cf)}" placeholder="Опционально" style="flex: 1;"></div>
+                                <div style="display: flex; align-items: center; margin-bottom: 3px;"><label style="flex: 0 0 80px; color: green;">${loc("GRR.sheet.result.success")}</label><input type="text" id="parry-cs" value="${esc(myGifs.parry.cs)}" placeholder="${loc("GRR.common.optional")}" style="flex: 1;"></div>
+                                <div style="display: flex; align-items: center;"><label style="flex: 0 0 80px; color: red;">${loc("GRR.sheet.result.fail")}</label><input type="text" id="parry-cf" value="${esc(myGifs.parry.cf)}" placeholder="${loc("GRR.common.optional")}" style="flex: 1;"></div>
                             </div>
                         </div>
                     </div>
 
                     <div style="margin-bottom: 5px; background: rgba(0,0,0,0.02); padding: 8px; border-radius: 5px; border-left: 4px solid #000066;">
                         <label style="font-weight: bold; color: #000066; cursor: pointer; display: flex; align-items: center;">
-                            <input type="checkbox" id="block-en-chk" ${myGifs.block.enabled ? "checked" : ""}> 
-                            <i class="fas fa-chess-rook" style="margin-left:5px; margin-right:3px;"></i> Есть Блок? ${testBtnHtml('block')}
+                            <input type="checkbox" id="block-en-chk" ${myGifs.block.enabled ? "checked" : ""}>
+                            <i class="fas fa-chess-rook" style="margin-left:5px; margin-right:3px;"></i> ${loc("GRR.sheet.weapon.hasBlock")} ${testBtnHtml('block')}
                         </label>
                         <div id="block-main-box" style="display: none; margin-top: 5px;">
                             <div style="display: flex;">
-                                <input type="text" id="block-def" value="${esc(myGifs.block.def)}" placeholder="Успех (или всё)" style="flex: 1; margin-right: 3px;">
-                                <input type="text" id="block-f" value="${esc(myGifs.block.f)}" placeholder="Провал" style="flex: 1; margin-left: 3px;">
+                                <input type="text" id="block-def" value="${esc(myGifs.block.def)}" placeholder="${loc("GRR.sheet.weapon.successPlaceholder")}" style="flex: 1; margin-right: 3px;">
+                                <input type="text" id="block-f" value="${esc(myGifs.block.f)}" placeholder="${loc("GRR.sheet.weapon.failPlaceholder")}" style="flex: 1; margin-left: 3px;">
                             </div>
-                            <div style="margin-top: 5px;"><label><input type="checkbox" id="block-crit-chk" ${myGifs.block.useCrit ? "checked" : ""}> <i>Критические броски?</i></label></div>
+                            <div style="margin-top: 5px;"><label><input type="checkbox" id="block-crit-chk" ${myGifs.block.useCrit ? "checked" : ""}> <i>${loc("GRR.sheet.weapon.criticals")}</i></label></div>
                             <div id="block-crit-box" style="display: none; margin-top: 5px; padding-left: 10px;">
-                                <div style="display: flex; align-items: center; margin-bottom: 3px;"><label style="flex: 0 0 80px; color: green;">Успех:</label><input type="text" id="block-cs" value="${esc(myGifs.block.cs)}" placeholder="Опционально" style="flex: 1;"></div>
-                                <div style="display: flex; align-items: center;"><label style="flex: 0 0 80px; color: red;">Провал:</label><input type="text" id="block-cf" value="${esc(myGifs.block.cf)}" placeholder="Опционально" style="flex: 1;"></div>
+                                <div style="display: flex; align-items: center; margin-bottom: 3px;"><label style="flex: 0 0 80px; color: green;">${loc("GRR.sheet.result.success")}</label><input type="text" id="block-cs" value="${esc(myGifs.block.cs)}" placeholder="${loc("GRR.common.optional")}" style="flex: 1;"></div>
+                                <div style="display: flex; align-items: center;"><label style="flex: 0 0 80px; color: red;">${loc("GRR.sheet.result.fail")}</label><input type="text" id="block-cf" value="${esc(myGifs.block.cf)}" placeholder="${loc("GRR.common.optional")}" style="flex: 1;"></div>
                             </div>
                         </div>
                     </div>`,
                     render: (dHtml) => {
                         const $d = $(dHtml);
                         const toggleBox = (chk, box) => { if($d.find(chk).prop('checked')) $d.find(box).slideDown(150); else $d.find(box).slideUp(150); };
-                        
+
                         $d.find('#atk-crit-box').toggle($d.find('#atk-crit-chk').prop('checked'));
                         $d.find('#parry-main-box').toggle($d.find('#parry-en-chk').prop('checked'));
                         $d.find('#parry-crit-box').toggle($d.find('#parry-crit-chk').prop('checked'));
@@ -223,11 +224,10 @@
                         $d.find('#block-en-chk').change(() => toggleBox('#block-en-chk', '#block-main-box'));
                         $d.find('#block-crit-chk').change(() => toggleBox('#block-crit-chk', '#block-crit-box'));
 
-                        // Обработчик тестов для оружия
                         $d.find('.grr-test-btn').click(function(e) {
                             e.preventDefault();
                             const section = $(this).data('section');
-                            const sectionTitle = section === 'atk' ? "(Атака)" : section === 'parry' ? "(Парирование)" : "(Блок)";
+                            const sectionTitle = loc(`GRR.sheet.weapon.section.${section}`);
                             const urls = {
                                 def: $d.find(`#${section}-def`).val(),
                                 f: $d.find(`#${section}-f`).val(),
@@ -240,11 +240,11 @@
                     },
                     buttons: {
                         save: {
-                            icon: '<i class="fas fa-save"></i>', label: "Сохранить",
+                            icon: '<i class="fas fa-save"></i>', label: loc("GRR.common.save"),
                             callback: async (dHtml) => {
                                 const $d = $(dHtml);
                                 const updatedGifs = foundry.utils.mergeObject(allWpnGifs, {
-                                    [weaponNameText]: { 
+                                    [weaponNameText]: {
                                         atk: { def: $d.find('#atk-def').val().trim(), f: $d.find('#atk-f').val().trim(), cs: $d.find('#atk-cs').val().trim(), cf: $d.find('#atk-cf').val().trim(), useCrit: $d.find('#atk-crit-chk').prop('checked') },
                                         parry: { enabled: $d.find('#parry-en-chk').prop('checked'), def: $d.find('#parry-def').val().trim(), f: $d.find('#parry-f').val().trim(), cs: $d.find('#parry-cs').val().trim(), cf: $d.find('#parry-cf').val().trim(), useCrit: $d.find('#parry-crit-chk').prop('checked') },
                                         block: { enabled: $d.find('#block-en-chk').prop('checked'), def: $d.find('#block-def').val().trim(), f: $d.find('#block-f').val().trim(), cs: $d.find('#block-cs').val().trim(), cf: $d.find('#block-cf').val().trim(), useCrit: $d.find('#block-crit-chk').prop('checked') }
