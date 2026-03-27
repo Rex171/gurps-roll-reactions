@@ -17,7 +17,7 @@ window.GRR_Shared = {
     buildMediaHTML: (url, borderStyle) => {
         return `
             <div class="gurps-skill-media-wrapper" style="margin-top: 8px; border-top: 1px dashed #999; padding-top: 5px; text-align: center;">
-                <img src="${GRR_Shared.escapeHTML(url)}" style="max-width: 100%; height: auto; border-radius: 6px; ${borderStyle}" alt="GURPS Roll Media">
+                <img src="${GRR_Shared.escapeHTML(url)}" style="max-width: 100%; height: auto; border-radius: 6px; ${borderStyle}" alt="Реакция не загрузилась">
             </div>
         `;
     },
@@ -30,13 +30,13 @@ window.GRR_Shared = {
         return baseStyle;
     },
 
-    openTestModal: (title, urls) => {
+    openTestModal: (title, urls, skillLevel = 10) => {
         const content = `
             <div style="text-align: center; margin-bottom: 10px;">
                 <div style="display: flex; justify-content: space-around; margin-bottom: 15px; background: rgba(0,0,0,0.03); padding: 10px; border-radius: 5px;">
                     <div>
                         <label style="font-weight: bold; font-size: 0.9em;">Уровень навыка:</label><br>
-                        <input type="number" id="grr-test-skill" value="10" style="width: 70px; text-align: center; margin-top: 5px;">
+                        <input type="number" id="grr-test-skill" value="${skillLevel}" style="width: 70px; text-align: center; margin-top: 5px;">
                     </div>
                     <div>
                         <label style="font-weight: bold; font-size: 0.9em;">Бросок кубиков:</label><br>
@@ -44,7 +44,7 @@ window.GRR_Shared = {
                     </div>
                 </div>
                 <button id="grr-roll-btn" style="background: #e3d3b9; border: 1px solid #7a633f; font-weight: bold;">
-                    <i class="fas fa-dice"></i> Рассчитать и показать
+                    <i class="fas fa-dice"></i> Показать
                 </button>
             </div>
             <div id="grr-preview-area" style="min-height: 120px; display: flex; align-items: center; justify-content: center; border: 1px dashed #999; border-radius: 5px; padding: 10px; margin-top: 10px;">
@@ -96,7 +96,7 @@ window.GRR_Shared = {
                     if (finalUrl) {
                         previewHtml += `<img src="${GRR_Shared.escapeHTML(finalUrl)}" style="max-width: 100%; height: auto; border-radius: 6px; ${border}">`;
                     } else {
-                        previewHtml += `<span style="color: #990000; font-weight: bold;">[!] Нет ссылки для этого результата.</span><br><span style="font-size: 0.8em; color: #555;">Будет показан только текст системы.</span>`;
+                        previewHtml += `<span style="color: #990000;">Для этого результата реакция не задана.</span>`;
                     }
                     previewHtml += `</div>`;
 

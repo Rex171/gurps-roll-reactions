@@ -4,12 +4,12 @@
 
     // ШАБЛОН: Иконка теста (устанавливается только в заголовки секций)
     const testBtnHtml = (section) => `
-        <a class="grr-test-btn" title="Тест медиа (Симуляция броска)" data-section="${section}" style="color: #555; margin-left: 8px; cursor: pointer; transition: color 0.2s; font-size: 1.1em;"><i class="fas fa-dice"></i></a>
+        <a class="grr-test-btn" title="Тест реакции" data-section="${section}" style="color: #555; margin-left: 8px; cursor: pointer; transition: color 0.2s; font-size: 1.1em;"><i class="fas fa-dice"></i></a>
     `;
 
     Hooks.on("getActorSheetHeaderButtons", (sheet, buttons) => {
         if (game.system.id !== "gurps") return;
-        buttons.unshift({ label: "Универсальные Медиа", class: "gurps-media-btn", icon: "fas fa-film", onclick: () => openMediaManager(sheet.actor) });
+        buttons.unshift({ label: "Реакции", class: "gurps-media-btn", icon: "fas fa-film", onclick: () => openMediaManager(sheet.actor) });
     });
 
     function buildUniversalRow(trigger, urls) {
@@ -17,7 +17,7 @@
         <div class="gurps-media-row" style="border: 1px solid #777; padding: 8px; margin-bottom: 8px; border-radius: 5px; background: rgba(0,0,0,0.05); transition: background 0.2s;">
             <div style="display: flex; margin-bottom: 5px; align-items: center;">
                 <b style="flex: 0 0 100px;">Триггер:</b>
-                <input type="text" class="trigger-name" value="${esc(trigger)}" placeholder="Уклонение, Dodge" style="flex: 1;">
+                <input type="text" class="trigger-name" value="${esc(trigger)}" placeholder="DX, Dodge" style="flex: 1;">
                 ${testBtnHtml('universal')}
                 <a class="remove-media-btn" style="color: darkred; margin-left: 10px; cursor: pointer;" title="Удалить"><i class="fas fa-trash"></i></a>
             </div>
@@ -34,9 +34,9 @@
         for (const [trigger, urls] of Object.entries(currentFlags)) rowsHtml += buildUniversalRow(trigger, urls);
 
         new Dialog({
-            title: `Универсальные Медиа: ${actor.name}`,
+            title: `Реакции: ${actor.name}`,
             content: `
-                <div style="margin-bottom: 10px;"><p style="font-size: 0.9em; color: #444;">Только общие триггеры (Уклонение, Атрибуты). Навыки и Оружие настраиваются в листе.</p></div>
+                <div style="margin-bottom: 10px;"><p style="font-size: 0.9em; color: #444;">Реакции для атрибутов, вторичных характеристик, преимуществ и недостатков и т.п.</p></div>
                 <div id="gurps-media-list" style="max-height: 400px; overflow-y: auto; padding-right: 5px; margin-bottom: 10px;">${rowsHtml}</div>
                 <div style="text-align: center; margin-bottom: 10px;"><button id="add-gurps-media"><i class="fas fa-plus"></i> Добавить</button></div>
             `,
@@ -48,7 +48,7 @@
                 $html.on('click', '.grr-test-btn', function(e) {
                     e.preventDefault();
                     const row = $(this).closest('.gurps-media-row');
-                    const title = row.find('.trigger-name').val() || "Универсальный триггер";
+                    const title = row.find('.trigger-name').val() || "Без названия";
                     const urls = {
                         def: row.find('.trigger-def').val(),
                         f: row.find('.trigger-f').val(),
@@ -70,7 +70,7 @@
                         const payload = {};
                         for (let oldKey of Object.keys(currentFlags)) if (!newFlags.hasOwnProperty(oldKey)) payload[`-=${oldKey}`] = null;
                         Object.assign(payload, newFlags);
-                        if (Object.keys(payload).length > 0) await actor.setFlag(MODULE_ID, "universal", payload);
+                        if (Object.keys(payload).length > 0) await (game.actors.get(actor.id) ?? actor).setFlag(MODULE_ID, "universal", payload);
                     }
                 }
             },
@@ -79,42 +79,46 @@
     }
 
     // --- ИКОНКИ ДЛЯ НАВЫКОВ И ОРУЖИЯ ---
-    Hooks.on("renderActorSheet", (app, html, data) => {
+    Hooks.on("renderActorSheet", (app, html) => {
         if (game.system.id !== "gurps") return;
         const actor = app.actor;
         const $html = $(html);
 
         // Обработка навыков
-        $html.find('div[data-key^="system.skills"], div[data-key^="system.spells"]').each((index, element) => {
+        $html.find('div[data-key^="system.skills"], div[data-key^="system.spells"]').each((_index, element) => {
             const descDiv = $(element).find('.gga-line-description');
             if (descDiv.find('.gurps-gif-settings-btn').length > 0) return;
             const skillNameText = descDiv.find('.tooltip').text().trim();
             if (!skillNameText) return;
 
-            const btn = $(`<a class="gurps-gif-settings-btn" title="Медиа навыка" style="margin-left: 8px; color: #8b0000; cursor: pointer; flex-shrink: 0; transition: all 0.2s;"><i class="fas fa-image"></i></a>`);
+            const btn = $(`<a class="gurps-gif-settings-btn" title="Реакции навыка" style="margin-left: 8px; color: #8b0000; cursor: pointer; flex-shrink: 0; transition: all 0.2s;"><i class="fas fa-image"></i></a>`);
+            const dataKey = $(element).attr('data-key');
+            const skillData = foundry.utils.getProperty(actor, dataKey);
+            const skillLevel = skillData?.level ?? 10;
+
             btn.click(async (e) => {
                 e.preventDefault(); e.stopPropagation();
                 const allSkillGifs = actor.getFlag(MODULE_ID, "skills") || {};
                 const myGifs = allSkillGifs[skillNameText] || {};
 
                 new Dialog({
-                    title: "Медиа Навыка",
+                    title: "Реакции навыка",
                     content: `
                         <div style="margin-bottom: 10px; display: flex; align-items: center; justify-content: space-between;">
                             <span>Навык: <b>${esc(skillNameText)}</b></span>
                             ${testBtnHtml('skill')}
                         </div>
-                        <div style="display: flex; margin-bottom: 5px;"><label style="flex: 1;">Обычный (Успех):</label><input type="text" id="gif-def" value="${esc(myGifs.defaultGif)}" style="flex: 2;"></div>
-                        <div style="display: flex; margin-bottom: 10px;"><label style="flex: 1; color: #b85c00;">Обычный Провал:</label><input type="text" id="gif-f" value="${esc(myGifs.failGif)}" placeholder="Опционально" style="flex: 2;"></div>
-                        <div style="display: flex; margin-bottom: 5px;"><label style="flex: 1; color: green;">Крит Успех:</label><input type="text" id="gif-cs" value="${esc(myGifs.critSuccessGif)}" placeholder="Опционально" style="flex: 2;"></div>
-                        <div style="display: flex; margin-bottom: 15px;"><label style="flex: 1; color: red;">Крит Провал:</label><input type="text" id="gif-cf" value="${esc(myGifs.critFailGif)}" placeholder="Опционально" style="flex: 2;"></div>
+                        <div style="display: flex; align-items: center; margin-bottom: 5px;"><label style="flex: 1;">Обычный:</label><input type="text" id="gif-def" value="${esc(myGifs.defaultGif)}" style="flex: 2;"></div>
+                        <div style="display: flex; align-items: center; margin-bottom: 10px;"><label style="flex: 1; color: #b85c00;">Провал:</label><input type="text" id="gif-f" value="${esc(myGifs.failGif)}" placeholder="Опционально" style="flex: 2;"></div>
+                        <div style="display: flex; align-items: center; margin-bottom: 5px;"><label style="flex: 1; color: green;">Крит Успех:</label><input type="text" id="gif-cs" value="${esc(myGifs.critSuccessGif)}" placeholder="Опционально" style="flex: 2;"></div>
+                        <div style="display: flex; align-items: center; margin-bottom: 15px;"><label style="flex: 1; color: red;">Крит Провал:</label><input type="text" id="gif-cf" value="${esc(myGifs.critFailGif)}" placeholder="Опционально" style="flex: 2;"></div>
                     `,
                     render: (dHtml) => {
                         $(dHtml).find('.grr-test-btn').click(function(e) {
                             e.preventDefault();
                             GRR_Shared.openTestModal(skillNameText, {
-                                def: $('#gif-def').val(), f: $('#gif-f').val(), cs: $('#gif-cs').val(), cf: $('#gif-cf').val()
-                            });
+                                def: $(dHtml).find('#gif-def').val(), f: $(dHtml).find('#gif-f').val(), cs: $(dHtml).find('#gif-cs').val(), cf: $(dHtml).find('#gif-cf').val()
+                            }, skillLevel);
                         });
                     },
                     buttons: {
@@ -124,7 +128,7 @@
                                 const updatedGifs = foundry.utils.mergeObject(allSkillGifs, {
                                     [skillNameText]: { defaultGif: $(dHtml).find('#gif-def').val().trim(), failGif: $(dHtml).find('#gif-f').val().trim(), critSuccessGif: $(dHtml).find('#gif-cs').val().trim(), critFailGif: $(dHtml).find('#gif-cf').val().trim() }
                                 });
-                                await actor.setFlag(MODULE_ID, "skills", updatedGifs);
+                                await (game.actors.get(actor.id) ?? actor).setFlag(MODULE_ID, "skills", updatedGifs);
                             }
                         }
                     },
@@ -135,13 +139,13 @@
         });
 
         // Обработка оружия
-        $html.find('.meleedraggable, .rangeddraggable, div[data-key^="system.melee"], div[data-key^="system.ranged"]').each((index, element) => {
+        $html.find('.meleedraggable, .rangeddraggable, div[data-key^="system.melee"], div[data-key^="system.ranged"]').each((_index, element) => {
             const descDiv = $(element).find('.desc').first(); 
             if (!descDiv.length || descDiv.find('.gurps-wpn-settings-btn').length > 0) return;
             const weaponNameText = descDiv.find('.tooltip').first().text().trim();
             if (!weaponNameText) return;
 
-            const btn = $(`<a class="gurps-wpn-settings-btn" title="Медиа оружия (Атака/Защита)" style="margin-left: 6px; color: #1e4a8b; font-size: 1.1em; cursor: pointer; flex-shrink: 0; transition: all 0.2s;"><i class="fas fa-khanda"></i></a>`);
+            const btn = $(`<a class="gurps-wpn-settings-btn" title="Реакции оружия" style="margin-left: 6px; color: #1e4a8b; font-size: 1.1em; cursor: pointer; flex-shrink: 0; transition: all 0.2s;"><i class="fas fa-khanda"></i></a>`);
             descDiv.find('.tooltip').first().after(btn);
 
             btn.click(async (e) => {
@@ -151,7 +155,7 @@
                 const myGifs = foundry.utils.mergeObject(defaultStructure, allWpnGifs[weaponNameText] || {});
 
                 new Dialog({
-                    title: "Настройка Медиа Оружия",
+                    title: "Реакции оружия",
                     content: `
                     <div style="margin-bottom: 10px; text-align: center; border-bottom: 1px solid #ccc; padding-bottom: 5px;"><b>${esc(weaponNameText)}</b></div>
                     
@@ -161,10 +165,10 @@
                             <input type="text" id="atk-def" value="${esc(myGifs.atk.def)}" placeholder="Успех (или всё)" style="flex: 1; margin-right: 3px;">
                             <input type="text" id="atk-f" value="${esc(myGifs.atk.f)}" placeholder="Провал" style="flex: 1; margin-left: 3px;">
                         </div>
-                        <div style="margin-top: 5px;"><label><input type="checkbox" id="atk-crit-chk" ${myGifs.atk.useCrit ? "checked" : ""}> <i>Настроить критические броски?</i></label></div>
+                        <div style="margin-top: 5px;"><label><input type="checkbox" id="atk-crit-chk" ${myGifs.atk.useCrit ? "checked" : ""}> <i>Критические броски?</i></label></div>
                         <div id="atk-crit-box" style="display: none; margin-top: 5px; padding-left: 10px;">
-                            <div style="display: flex; margin-bottom: 3px;"><label style="flex: 0 0 80px; color: green; font-size: 0.9em;">Успех:</label><input type="text" id="atk-cs" value="${esc(myGifs.atk.cs)}" placeholder="Опционально" style="flex: 1;"></div>
-                            <div style="display: flex;"><label style="flex: 0 0 80px; color: red; font-size: 0.9em;">Провал:</label><input type="text" id="atk-cf" value="${esc(myGifs.atk.cf)}" placeholder="Опционально" style="flex: 1;"></div>
+                            <div style="display: flex; align-items: center; margin-bottom: 3px;"><label style="flex: 0 0 80px; color: green;">Успех:</label><input type="text" id="atk-cs" value="${esc(myGifs.atk.cs)}" placeholder="Опционально" style="flex: 1;"></div>
+                            <div style="display: flex; align-items: center;"><label style="flex: 0 0 80px; color: red;">Провал:</label><input type="text" id="atk-cf" value="${esc(myGifs.atk.cf)}" placeholder="Опционально" style="flex: 1;"></div>
                         </div>
                     </div>
 
@@ -180,8 +184,8 @@
                             </div>
                             <div style="margin-top: 5px;"><label><input type="checkbox" id="parry-crit-chk" ${myGifs.parry.useCrit ? "checked" : ""}> <i>Критические броски?</i></label></div>
                             <div id="parry-crit-box" style="display: none; margin-top: 5px; padding-left: 10px;">
-                                <div style="display: flex; margin-bottom: 3px;"><label style="flex: 0 0 80px; color: green; font-size: 0.9em;">Успех:</label><input type="text" id="parry-cs" value="${esc(myGifs.parry.cs)}" placeholder="Опционально" style="flex: 1;"></div>
-                                <div style="display: flex;"><label style="flex: 0 0 80px; color: red; font-size: 0.9em;">Провал:</label><input type="text" id="parry-cf" value="${esc(myGifs.parry.cf)}" placeholder="Опционально" style="flex: 1;"></div>
+                                <div style="display: flex; align-items: center; margin-bottom: 3px;"><label style="flex: 0 0 80px; color: green;">Успех:</label><input type="text" id="parry-cs" value="${esc(myGifs.parry.cs)}" placeholder="Опционально" style="flex: 1;"></div>
+                                <div style="display: flex; align-items: center;"><label style="flex: 0 0 80px; color: red;">Провал:</label><input type="text" id="parry-cf" value="${esc(myGifs.parry.cf)}" placeholder="Опционально" style="flex: 1;"></div>
                             </div>
                         </div>
                     </div>
@@ -198,8 +202,8 @@
                             </div>
                             <div style="margin-top: 5px;"><label><input type="checkbox" id="block-crit-chk" ${myGifs.block.useCrit ? "checked" : ""}> <i>Критические броски?</i></label></div>
                             <div id="block-crit-box" style="display: none; margin-top: 5px; padding-left: 10px;">
-                                <div style="display: flex; margin-bottom: 3px;"><label style="flex: 0 0 80px; color: green; font-size: 0.9em;">Успех:</label><input type="text" id="block-cs" value="${esc(myGifs.block.cs)}" placeholder="Опционально" style="flex: 1;"></div>
-                                <div style="display: flex;"><label style="flex: 0 0 80px; color: red; font-size: 0.9em;">Провал:</label><input type="text" id="block-cf" value="${esc(myGifs.block.cf)}" placeholder="Опционально" style="flex: 1;"></div>
+                                <div style="display: flex; align-items: center; margin-bottom: 3px;"><label style="flex: 0 0 80px; color: green;">Успех:</label><input type="text" id="block-cs" value="${esc(myGifs.block.cs)}" placeholder="Опционально" style="flex: 1;"></div>
+                                <div style="display: flex; align-items: center;"><label style="flex: 0 0 80px; color: red;">Провал:</label><input type="text" id="block-cf" value="${esc(myGifs.block.cf)}" placeholder="Опционально" style="flex: 1;"></div>
                             </div>
                         </div>
                     </div>`,
@@ -225,11 +229,11 @@
                             const section = $(this).data('section');
                             const sectionTitle = section === 'atk' ? "(Атака)" : section === 'parry' ? "(Парирование)" : "(Блок)";
                             const urls = {
-                                def: $(`#${section}-def`).val(),
-                                f: $(`#${section}-f`).val(),
-                                cs: $(`#${section}-cs`).val(),
-                                cf: $(`#${section}-cf`).val(),
-                                useCrit: $(`#${section}-crit-chk`).prop('checked')
+                                def: $d.find(`#${section}-def`).val(),
+                                f: $d.find(`#${section}-f`).val(),
+                                cs: $d.find(`#${section}-cs`).val(),
+                                cf: $d.find(`#${section}-cf`).val(),
+                                useCrit: $d.find(`#${section}-crit-chk`).prop('checked')
                             };
                             GRR_Shared.openTestModal(`${weaponNameText} ${sectionTitle}`, urls);
                         });
@@ -246,7 +250,7 @@
                                         block: { enabled: $d.find('#block-en-chk').prop('checked'), def: $d.find('#block-def').val().trim(), f: $d.find('#block-f').val().trim(), cs: $d.find('#block-cs').val().trim(), cf: $d.find('#block-cf').val().trim(), useCrit: $d.find('#block-crit-chk').prop('checked') }
                                     }
                                 });
-                                await actor.setFlag(MODULE_ID, "weapons", updatedGifs);
+                                await (game.actors.get(actor.id) ?? actor).setFlag(MODULE_ID, "weapons", updatedGifs);
                             }
                         }
                     },

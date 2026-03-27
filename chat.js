@@ -1,6 +1,5 @@
 (() => {
     const MODULE_ID = "gurps-roll-reactions";
-    const esc = (str) => String(str || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
     Hooks.on("renderChatMessage", async (message, html, data) => {
         if (game.system.id !== "gurps") return;
@@ -8,9 +7,9 @@
         if ($html.find('.gga-chat-message').length === 0) return;
 
         let actor = game.actors.get(message.speaker?.actor);
-        if (message.speaker?.token) {
-            const token = canvas.tokens.get(message.speaker.token);
-            if (token) actor = token.actor;
+        if (!actor && message.speaker?.token) {
+            const token = canvas.tokens?.get(message.speaker.token);
+            if (token) actor = game.actors.get(token.document.actorId);
         }
         if (!actor) return; 
 
@@ -88,15 +87,7 @@
 
         // --- РЕНДЕР ---
         const enableGlow = game.settings.get(MODULE_ID, "enableGlow");
-        let borderStyle = "border: 2px solid #222; box-shadow: 0 0 5px rgba(0,0,0,0.5);";
-        if (isCritSuccess && enableGlow) borderStyle = "border: 2px solid #008000; box-shadow: 0 0 15px rgba(0, 255, 0, 0.8);";
-        else if (isCritFail && enableGlow) borderStyle = "border: 2px solid #8b0000; box-shadow: 0 0 15px rgba(255, 0, 0, 0.8);";
-
-        const mediaTemplate = `
-            <div class="gurps-skill-media-wrapper" style="margin-top: 8px; border-top: 1px dashed #999; padding-top: 5px; text-align: center;">
-                <img src="${esc(finalMediaUrl)}" style="max-width: 100%; height: auto; border-radius: 6px; ${borderStyle}">
-            </div>
-        `;
-        $html.find('.message-content').first().append(mediaTemplate);
+        const borderStyle = GRR_Shared.calculateBorderStyle(enableGlow, isCritSuccess, isCritFail);
+        $html.find('.message-content').first().append(GRR_Shared.buildMediaHTML(finalMediaUrl, borderStyle));
     });
 })();
