@@ -1,0 +1,9 @@
+/* Подсветка иконок при наведении (UI/UX) */
+.gurps-gif-settings-btn:hover { 
+    color: #ff4444 !important; 
+    text-shadow: 0 0 5px rgba(255,0,0,0.3); 
+}
+.gurps-wpn-settings-btn:hover { 
+    color: #4488ff !important; 
+    text-shadow: 0 0 5px rgba(0,100,255,0.3); 
+}

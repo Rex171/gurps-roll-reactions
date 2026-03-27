@@ -1,0 +1,34 @@
+{
+  "id": "gurps-roll-reactions",
+  "title": "GURPS Roll Reactions",
+  "description": "Добавляет визуальные реакции (GIF и картинки) на броски навыков, оружия и атрибутов в чате. Поддерживает настройку критических успехов и провалов.",
+  "version": "1.0.0",
+  "library": false,
+  "url": "https://github.com/Rex171/gurps-roll-reactions",
+  "bugs": "https://github.com/Rex171/gurps-roll-reactions/issues",
+  "compatibility": {
+    "minimum": "11",
+    "verified": "13"
+  },
+  "authors": [
+    {
+      "name": "Rex171",
+	  "url": "https://github.com/Rex171",
+    }
+  ],
+  "systems": [
+    {
+      "id": "gurps",
+      "type": "system"
+    }
+  ],
+  "scripts": [
+    "settings.js",
+	"shared-logic.js",
+    "sheet.js",
+    "chat.js"
+  ],
+  "styles": [
+    "styles.css"
+  ]
+}
