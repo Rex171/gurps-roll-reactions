@@ -6,6 +6,7 @@
   "library": false,
   "url": "https://github.com/Rex171/gurps-roll-reactions",
   "bugs": "https://github.com/Rex171/gurps-roll-reactions/issues",
+  "download": "https://github.com/Rex171/gurps-roll-reactions/releases/download/v1.0.0/gurps-roll-reactions.zip",
   "compatibility": {
     "minimum": "11",
     "verified": "13"
