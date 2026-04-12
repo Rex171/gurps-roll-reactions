@@ -1,17 +1,43 @@
 /**
  * GURPS Roll Reactions - Shared Logic & Smart Test Modal
- * Совместимость: Foundry VTT V13
+ * Compatible with: Foundry VTT V13
  */
 
 window.GRR_Shared = {
     MODULE_ID: "gurps-roll-reactions",
 
+    loc: (key) => game.i18n.localize(key),
+    fmt: (key, data) => game.i18n.format(key, data),
+
+    resolveActor: (actor) => game.actors.get(actor.id) ?? actor,
+
+    getActorReactions: (actor) => {
+        const mid = GRR_Shared.MODULE_ID;
+        return {
+            skills:    actor.getFlag(mid, "skills")    || {},
+            weapons:   actor.getFlag(mid, "weapons")   || {},
+            universal: actor.getFlag(mid, "universal") || {},
+        };
+    },
+
+    clearActorReactions: async (actor) => {
+        const mid = GRR_Shared.MODULE_ID;
+        let cleared = false;
+        for (const type of ["skills", "weapons", "universal"]) {
+            if (actor.getFlag(mid, type)) { await actor.unsetFlag(mid, type); cleared = true; }
+        }
+        return cleared;
+    },
+
+    // Foundry's mergeObject/setProperty treats dots as path separators,
+    // so keys with dots (e.g. skill names like "Skill...") get corrupted on save.
+    // Encode dots in flag keys before storing, decode when reading back.
+    encodeKey: (k) => k.replace(/\./g, "\u00B7"),
+    decodeKey: (k) => k.replace(/\u00B7/g, "."),
+
     escapeHTML: (str) => {
         if (!str || typeof str !== 'string') return "";
-        if (str.includes('<') && str.includes('>')) {
-            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-        }
-        return str.replace(/"/g, "&quot;");
+        return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
     },
 
     buildMediaHTML: (url, borderStyle) => {
@@ -30,9 +56,26 @@ window.GRR_Shared = {
         return baseStyle;
     },
 
+    // Official GURPS critical roll math.
+    // Returns { isCritSuccess, isCritFail, isSuccess, isFail }.
+    evaluateRoll: (roll, skill) => {
+        let isCritSuccess = false, isCritFail = false;
+        if (roll <= 4) isCritSuccess = true;
+        else if (roll === 5 && skill >= 15) isCritSuccess = true;
+        else if (roll === 6 && skill >= 16) isCritSuccess = true;
+        else if (roll === 18) isCritFail = true;
+        else if (roll === 17 && skill <= 15) isCritFail = true;
+        else if (roll - skill >= 10) isCritFail = true;
+        return {
+            isCritSuccess,
+            isCritFail,
+            isSuccess: roll <= skill && !isCritFail,
+            isFail:    roll > skill  && !isCritSuccess,
+        };
+    },
+
     openTestModal: (title, urls, skillLevel = 10) => {
-        const loc = (key) => game.i18n.localize(key);
-        const fmt = (key, data) => game.i18n.format(key, data);
+        const { loc, fmt } = GRR_Shared;
 
         const content = `
             <div style="text-align: center; margin-bottom: 10px;">
@@ -63,21 +106,9 @@ window.GRR_Shared = {
                     const skill = parseInt(html.find('#grr-test-skill').val()) || 10;
                     const roll = parseInt(html.find('#grr-test-roll').val()) || 10;
 
-                    let isCritSuccess = false;
-                    let isCritFail = false;
+                    const { isCritSuccess, isCritFail, isSuccess, isFail } = GRR_Shared.evaluateRoll(roll, skill);
 
-                    // Официальная математика критов GURPS
-                    if (roll <= 4) isCritSuccess = true;
-                    else if (roll === 5 && skill >= 15) isCritSuccess = true;
-                    else if (roll === 6 && skill >= 16) isCritSuccess = true;
-                    else if (roll === 18) isCritFail = true;
-                    else if (roll === 17 && skill <= 15) isCritFail = true;
-                    else if (roll - skill >= 10) isCritFail = true;
-
-                    const isSuccess = (roll <= skill) && !isCritFail;
-                    const isFail = (roll > skill) && !isCritSuccess;
-
-                    // Логика каскадного фоллбэка
+                    // Cascading fallback logic
                     let finalUrl = urls.def;
                     if (isFail && urls.f) finalUrl = urls.f;
                     if (urls.useCrit !== false) {

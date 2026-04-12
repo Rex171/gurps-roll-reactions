@@ -1,7 +1,5 @@
 (() => {
-    const MODULE_ID = "gurps-roll-reactions";
-
-    Hooks.on("renderChatMessage", async (message, html, data) => {
+    Hooks.on("renderChatMessage", async (message, html) => {
         if (game.system.id !== "gurps") return;
         const $html = html instanceof jQuery ? html : $(html);
         if ($html.find('.gga-chat-message').length === 0) return;
@@ -16,32 +14,34 @@
         const allText = $html.text().replace(/\s+/g, ' ').trim();
         const cleanText = $html.text().replace(/[\s\n\r\-!.,_]+/g, '').toLowerCase();
 
-        // --- ДЕТЕКТОРЫ БРОСКОВ ---
-        let isCritSuccess = (cleanText.includes("крит") && cleanText.includes("успех")) || cleanText.includes("criticalsuccess");
-        let isCritFail = (cleanText.includes("крит") && (cleanText.includes("провал") || cleanText.includes("неудач"))) || cleanText.includes("criticalfailure");
-        
-        let isFail = cleanText.includes("неудач") || cleanText.includes("провал") || cleanText.includes("промах") || $html.find('.failure, [class*="fail"], .bad, [class*="bad"]').length > 0;
+        // --- ROLL DETECTORS ---
+        // margin = effectiveSkill - roll (negative on failure), so effectiveSkill = roll + margin.
+        // This correctly accounts for all modifiers without any text parsing.
+        const roll   = message.rolls?.[0]?._total;
+        const margin = message.rolls?.[0]?.data?.margin;
 
-        if ($html.find('[class*="crit"], [class*="critical"]').length > 0) {
-            if ($html.find('.success, [class*="success"]').length > 0) isCritSuccess = true;
-            if (isFail) isCritFail = true;
+        let isCritSuccess, isCritFail, isFail;
+
+        if (roll != null && margin != null) {
+            const effectiveSkill = roll + margin;
+            ({ isCritSuccess, isCritFail, isFail } = GRR_Shared.evaluateRoll(roll, effectiveSkill));
+        } else {
+            // Fallback to text detection if roll data is unavailable
+            isCritSuccess = cleanText.includes("criticalsuccess") || (cleanText.includes("крит") && cleanText.includes("успех"));
+            isCritFail    = cleanText.includes("criticalfailure")  || (cleanText.includes("крит") && (cleanText.includes("провал") || cleanText.includes("неудач")));
+            isFail        = cleanText.includes("failure") || cleanText.includes("miss") || cleanText.includes("неудач") || cleanText.includes("провал") || cleanText.includes("промах")
+                         || $html.find('.failure, [class*="fail"], .bad, [class*="bad"]').length > 0;
         }
 
-        if (isCritSuccess && isCritFail) {
-            if (isFail) isCritSuccess = false; 
-            else isCritFail = false;
-        }
-
-        // --- ЕДИНЫЙ ПУЛ ТРИГГЕРОВ ---
-        const wpnGifs = actor.getFlag(MODULE_ID, "weapons") || {};
-        const skillGifs = actor.getFlag(MODULE_ID, "skills") || {};
-        const univGifs = actor.getFlag(MODULE_ID, "universal") || {};
+        // --- TRIGGER POOL ---
+        const { weapons: wpnGifs, skills: skillGifs, universal: univGifs } = GRR_Shared.getActorReactions(actor);
 
         let allTriggers = [];
         
-        for (const [k, v] of Object.entries(wpnGifs)) if (k.trim()) allTriggers.push({ name: k, data: v, type: 'weapon' });
-        for (const [k, v] of Object.entries(skillGifs)) if (k.trim()) allTriggers.push({ name: k, data: v, type: 'simple' });
-        for (const [k, v] of Object.entries(univGifs)) if (k.trim()) allTriggers.push({ name: k, data: v, type: 'simple' });
+        const decodeKey = GRR_Shared.decodeKey;
+        for (const [k, v] of Object.entries(wpnGifs)) if (k.trim()) allTriggers.push({ name: decodeKey(k), data: v, type: 'weapon' });
+        for (const [k, v] of Object.entries(skillGifs)) if (k.trim()) allTriggers.push({ name: decodeKey(k), data: v, type: 'simple' });
+        for (const [k, v] of Object.entries(univGifs)) if (k.trim()) allTriggers.push({ name: decodeKey(k), data: v, type: 'simple' });
 
         allTriggers.sort((a, b) => b.name.length - a.name.length);
 
@@ -57,7 +57,7 @@
 
         let finalMediaUrl = "";
 
-        // --- КАСКАДНАЯ ЛОГИКА ВЫВОДА ---
+        // --- MEDIA SELECTION ---
         if (matchedTrigger.type === 'weapon') {
             const wData = matchedTrigger.data;
             const isParry = cleanText.includes("parry:") || cleanText.includes("парир") || cleanText.includes("p:") || cleanText.includes("р:"); 
@@ -68,12 +68,12 @@
             else if (isBlock && wData.block.enabled) activeBlock = wData.block;
             else if ((isParry && !wData.parry.enabled) || (isBlock && !wData.block.enabled)) return; 
 
-            finalMediaUrl = activeBlock.def; 
-            if (isFail && activeBlock.f) finalMediaUrl = activeBlock.f; 
-            
-            if (activeBlock.useCrit) { 
-                if (isCritSuccess && activeBlock.cs) finalMediaUrl = activeBlock.cs;
-                if (isCritFail && activeBlock.cf) finalMediaUrl = activeBlock.cf;
+            finalMediaUrl = activeBlock.defaultGif;
+            if (isFail && activeBlock.failGif) finalMediaUrl = activeBlock.failGif;
+
+            if (activeBlock.useCrit) {
+                if (isCritSuccess && activeBlock.critSuccessGif) finalMediaUrl = activeBlock.critSuccessGif;
+                if (isCritFail && activeBlock.critFailGif) finalMediaUrl = activeBlock.critFailGif;
             }
         } else {
             const gifData = matchedTrigger.data;
@@ -85,8 +85,8 @@
 
         if (!finalMediaUrl) return;
 
-        // --- РЕНДЕР ---
-        const enableGlow = game.settings.get(MODULE_ID, "enableGlow");
+        // --- RENDER ---
+        const enableGlow = game.settings.get(GRR_Shared.MODULE_ID, "enableGlow");
         const borderStyle = GRR_Shared.calculateBorderStyle(enableGlow, isCritSuccess, isCritFail);
         $html.find('.message-content').first().append(GRR_Shared.buildMediaHTML(finalMediaUrl, borderStyle));
     });

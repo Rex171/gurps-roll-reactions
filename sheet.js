@@ -1,12 +1,44 @@
 (() => {
     const MODULE_ID = GRR_Shared.MODULE_ID;
     const esc = GRR_Shared.escapeHTML;
-    const loc = (key) => game.i18n.localize(key);
-    const fmt = (key, data) => game.i18n.format(key, data);
+    const encodeKey = GRR_Shared.encodeKey;
+    const loc = GRR_Shared.loc;
+    const fmt = GRR_Shared.fmt;
 
     const testBtnHtml = (section) => `
         <a class="grr-test-btn" title="${loc("GRR.sheet.testReaction")}" data-section="${section}" style="color: #555; margin-left: 8px; cursor: pointer; transition: color 0.2s; font-size: 1.1em;"><i class="fas fa-dice"></i></a>
     `;
+
+    const WEAPON_SECTIONS = [
+        { id: 'atk',   color: '#8b0000', labelColor: '#660000', icon: 'fa-fist-raised', labelKey: 'GRR.sheet.weapon.attack',   hasEnable: false },
+        { id: 'parry', color: '#006600', labelColor: '#004400', icon: 'fa-shield-alt',  labelKey: 'GRR.sheet.weapon.hasParry', hasEnable: true  },
+        { id: 'block', color: '#000066', labelColor: '#000066', icon: 'fa-chess-rook',  labelKey: 'GRR.sheet.weapon.hasBlock', hasEnable: true  },
+    ];
+
+    const buildWeaponSection = (cfg, data) => {
+        const { id, color, labelColor, icon, labelKey, hasEnable } = cfg;
+        const header = hasEnable
+            ? `<label style="font-weight: bold; color: ${labelColor}; cursor: pointer; display: flex; align-items: center;">
+                   <input type="checkbox" id="${id}-en-chk" ${data.enabled ? "checked" : ""}>
+                   <i class="fas ${icon}" style="margin-left:5px; margin-right:3px;"></i> ${loc(labelKey)} ${testBtnHtml(id)}
+               </label>`
+            : `<b style="color: ${labelColor}; display: flex; align-items: center;"><i class="fas ${icon}" style="margin-right: 5px;"></i> ${loc(labelKey)} ${testBtnHtml(id)}</b>`;
+        const inputs = `
+            <div style="display: flex; margin-top: 5px;">
+                <input type="text" id="${id}-def" value="${esc(data.defaultGif)}" placeholder="${loc("GRR.sheet.weapon.successPlaceholder")}" style="flex: 1; margin-right: 3px;">
+                <input type="text" id="${id}-f"   value="${esc(data.failGif)}"    placeholder="${loc("GRR.sheet.weapon.failPlaceholder")}"    style="flex: 1; margin-left: 3px;">
+            </div>
+            <div style="margin-top: 5px;"><label><input type="checkbox" id="${id}-crit-chk" ${data.useCrit ? "checked" : ""}> <i>${loc("GRR.sheet.weapon.criticals")}</i></label></div>
+            <div id="${id}-crit-box" style="display: none; margin-top: 5px; padding-left: 10px;">
+                <div style="display: flex; align-items: center; margin-bottom: 3px;"><label style="flex: 0 0 80px; color: green;">${loc("GRR.sheet.result.success")}</label><input type="text" id="${id}-cs" value="${esc(data.critSuccessGif)}" placeholder="${loc("GRR.common.optional")}" style="flex: 1;"></div>
+                <div style="display: flex; align-items: center;">                  <label style="flex: 0 0 80px; color: red;">${loc("GRR.sheet.result.fail")}</label>  <input type="text" id="${id}-cf" value="${esc(data.critFailGif)}"    placeholder="${loc("GRR.common.optional")}" style="flex: 1;"></div>
+            </div>`;
+        return `
+            <div style="margin-bottom: 15px; background: rgba(0,0,0,0.02); padding: 8px; border-radius: 5px; border-left: 4px solid ${color};">
+                ${header}
+                ${hasEnable ? `<div id="${id}-main-box" style="display: none; margin-top: 5px;">${inputs}</div>` : inputs}
+            </div>`;
+    };
 
     Hooks.on("getActorSheetHeaderButtons", (sheet, buttons) => {
         if (game.system.id !== "gurps") return;
@@ -71,7 +103,7 @@
                         const payload = {};
                         for (let oldKey of Object.keys(currentFlags)) if (!newFlags.hasOwnProperty(oldKey)) payload[`-=${oldKey}`] = null;
                         Object.assign(payload, newFlags);
-                        if (Object.keys(payload).length > 0) await (game.actors.get(actor.id) ?? actor).setFlag(MODULE_ID, "universal", payload);
+                        if (Object.keys(payload).length > 0) await GRR_Shared.resolveActor(actor).setFlag(MODULE_ID, "universal", payload);
                     }
                 }
             },
@@ -79,17 +111,19 @@
         }, { width: 550, resizable: true }).render(true);
     }
 
-    // --- ИКОНКИ ДЛЯ НАВЫКОВ И ОРУЖИЯ ---
+    // --- SKILL AND WEAPON ICONS ---
     Hooks.on("renderActorSheet", (app, html) => {
         if (game.system.id !== "gurps") return;
         const actor = app.actor;
         const $html = $(html);
 
-        // Обработка навыков
+        // Skills
         $html.find('div[data-key^="system.skills"], div[data-key^="system.spells"]').each((_index, element) => {
             const descDiv = $(element).find('.gga-line-description');
             if (descDiv.find('.gurps-gif-settings-btn').length > 0) return;
-            const skillNameText = descDiv.find('.tooltip').text().trim();
+            const $skillTooltip = descDiv.find('.tooltip').clone();
+            $skillTooltip.children().remove();
+            const skillNameText = $skillTooltip.text().trim();
             if (!skillNameText) return;
 
             const btn = $(`<a class="gurps-gif-settings-btn" title="${loc("GRR.sheet.skill.tooltip")}" style="margin-left: 8px; color: #8b0000; cursor: pointer; flex-shrink: 0; transition: all 0.2s;"><i class="fas fa-image"></i></a>`);
@@ -100,7 +134,7 @@
             btn.click(async (e) => {
                 e.preventDefault(); e.stopPropagation();
                 const allSkillGifs = actor.getFlag(MODULE_ID, "skills") || {};
-                const myGifs = allSkillGifs[skillNameText] || {};
+                const myGifs = allSkillGifs[encodeKey(skillNameText)] || {};
 
                 new Dialog({
                     title: loc("GRR.sheet.skill.title"),
@@ -126,10 +160,8 @@
                         save: {
                             icon: '<i class="fas fa-save"></i>', label: loc("GRR.common.save"),
                             callback: async (dHtml) => {
-                                const updatedGifs = foundry.utils.mergeObject(allSkillGifs, {
-                                    [skillNameText]: { defaultGif: $(dHtml).find('#gif-def').val().trim(), failGif: $(dHtml).find('#gif-f').val().trim(), critSuccessGif: $(dHtml).find('#gif-cs').val().trim(), critFailGif: $(dHtml).find('#gif-cf').val().trim() }
-                                });
-                                await (game.actors.get(actor.id) ?? actor).setFlag(MODULE_ID, "skills", updatedGifs);
+                                const updatedGifs = { ...allSkillGifs, [encodeKey(skillNameText)]: { defaultGif: $(dHtml).find('#gif-def').val().trim(), failGif: $(dHtml).find('#gif-f').val().trim(), critSuccessGif: $(dHtml).find('#gif-cs').val().trim(), critFailGif: $(dHtml).find('#gif-cf').val().trim() } };
+                                await GRR_Shared.resolveActor(actor).setFlag(MODULE_ID, "skills", updatedGifs);
                             }
                         }
                     },
@@ -139,11 +171,13 @@
             descDiv.append(btn);
         });
 
-        // Обработка оружия
+        // Weapons
         $html.find('.meleedraggable, .rangeddraggable, div[data-key^="system.melee"], div[data-key^="system.ranged"]').each((_index, element) => {
             const descDiv = $(element).find('.desc').first();
             if (!descDiv.length || descDiv.find('.gurps-wpn-settings-btn').length > 0) return;
-            const weaponNameText = descDiv.find('.tooltip').first().text().trim();
+            const $wpnTooltip = descDiv.find('.tooltip').first().clone();
+            $wpnTooltip.children().remove();
+            const weaponNameText = $wpnTooltip.text().trim();
             if (!weaponNameText) return;
 
             const btn = $(`<a class="gurps-wpn-settings-btn" title="${loc("GRR.sheet.weapon.tooltip")}" style="margin-left: 6px; color: #1e4a8b; font-size: 1.1em; cursor: pointer; flex-shrink: 0; transition: all 0.2s;"><i class="fas fa-khanda"></i></a>`);
@@ -152,77 +186,26 @@
             btn.click(async (e) => {
                 e.preventDefault(); e.stopPropagation();
                 const allWpnGifs = actor.getFlag(MODULE_ID, "weapons") || {};
-                const defaultStructure = { atk: { def: "", f: "", cs: "", cf: "", useCrit: false }, parry: { enabled: false, def: "", f: "", cs: "", cf: "", useCrit: false }, block: { enabled: false, def: "", f: "", cs: "", cf: "", useCrit: false } };
-                const myGifs = foundry.utils.mergeObject(defaultStructure, allWpnGifs[weaponNameText] || {});
+                const defaultStructure = { atk: { defaultGif: "", failGif: "", critSuccessGif: "", critFailGif: "", useCrit: false }, parry: { enabled: false, defaultGif: "", failGif: "", critSuccessGif: "", critFailGif: "", useCrit: false }, block: { enabled: false, defaultGif: "", failGif: "", critSuccessGif: "", critFailGif: "", useCrit: false } };
+                const myGifs = foundry.utils.mergeObject(defaultStructure, allWpnGifs[encodeKey(weaponNameText)] || {});
 
                 new Dialog({
                     title: loc("GRR.sheet.weapon.title"),
                     content: `
                     <div style="margin-bottom: 10px; text-align: center; border-bottom: 1px solid #ccc; padding-bottom: 5px;"><b>${esc(weaponNameText)}</b></div>
-
-                    <div style="margin-bottom: 15px; background: rgba(0,0,0,0.02); padding: 8px; border-radius: 5px; border-left: 4px solid #8b0000;">
-                        <b style="color: #660000; display: flex; align-items: center;"><i class="fas fa-fist-raised" style="margin-right: 5px;"></i> ${loc("GRR.sheet.weapon.attack")} ${testBtnHtml('atk')}</b>
-                        <div style="display: flex; margin-top: 5px;">
-                            <input type="text" id="atk-def" value="${esc(myGifs.atk.def)}" placeholder="${loc("GRR.sheet.weapon.successPlaceholder")}" style="flex: 1; margin-right: 3px;">
-                            <input type="text" id="atk-f" value="${esc(myGifs.atk.f)}" placeholder="${loc("GRR.sheet.weapon.failPlaceholder")}" style="flex: 1; margin-left: 3px;">
-                        </div>
-                        <div style="margin-top: 5px;"><label><input type="checkbox" id="atk-crit-chk" ${myGifs.atk.useCrit ? "checked" : ""}> <i>${loc("GRR.sheet.weapon.criticals")}</i></label></div>
-                        <div id="atk-crit-box" style="display: none; margin-top: 5px; padding-left: 10px;">
-                            <div style="display: flex; align-items: center; margin-bottom: 3px;"><label style="flex: 0 0 80px; color: green;">${loc("GRR.sheet.result.success")}</label><input type="text" id="atk-cs" value="${esc(myGifs.atk.cs)}" placeholder="${loc("GRR.common.optional")}" style="flex: 1;"></div>
-                            <div style="display: flex; align-items: center;"><label style="flex: 0 0 80px; color: red;">${loc("GRR.sheet.result.fail")}</label><input type="text" id="atk-cf" value="${esc(myGifs.atk.cf)}" placeholder="${loc("GRR.common.optional")}" style="flex: 1;"></div>
-                        </div>
-                    </div>
-
-                    <div style="margin-bottom: 15px; background: rgba(0,0,0,0.02); padding: 8px; border-radius: 5px; border-left: 4px solid #006600;">
-                        <label style="font-weight: bold; color: #004400; cursor: pointer; display: flex; align-items: center;">
-                            <input type="checkbox" id="parry-en-chk" ${myGifs.parry.enabled ? "checked" : ""}>
-                            <i class="fas fa-shield-alt" style="margin-left:5px; margin-right:3px;"></i> ${loc("GRR.sheet.weapon.hasParry")} ${testBtnHtml('parry')}
-                        </label>
-                        <div id="parry-main-box" style="display: none; margin-top: 5px;">
-                            <div style="display: flex;">
-                                <input type="text" id="parry-def" value="${esc(myGifs.parry.def)}" placeholder="${loc("GRR.sheet.weapon.successPlaceholder")}" style="flex: 1; margin-right: 3px;">
-                                <input type="text" id="parry-f" value="${esc(myGifs.parry.f)}" placeholder="${loc("GRR.sheet.weapon.failPlaceholder")}" style="flex: 1; margin-left: 3px;">
-                            </div>
-                            <div style="margin-top: 5px;"><label><input type="checkbox" id="parry-crit-chk" ${myGifs.parry.useCrit ? "checked" : ""}> <i>${loc("GRR.sheet.weapon.criticals")}</i></label></div>
-                            <div id="parry-crit-box" style="display: none; margin-top: 5px; padding-left: 10px;">
-                                <div style="display: flex; align-items: center; margin-bottom: 3px;"><label style="flex: 0 0 80px; color: green;">${loc("GRR.sheet.result.success")}</label><input type="text" id="parry-cs" value="${esc(myGifs.parry.cs)}" placeholder="${loc("GRR.common.optional")}" style="flex: 1;"></div>
-                                <div style="display: flex; align-items: center;"><label style="flex: 0 0 80px; color: red;">${loc("GRR.sheet.result.fail")}</label><input type="text" id="parry-cf" value="${esc(myGifs.parry.cf)}" placeholder="${loc("GRR.common.optional")}" style="flex: 1;"></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div style="margin-bottom: 5px; background: rgba(0,0,0,0.02); padding: 8px; border-radius: 5px; border-left: 4px solid #000066;">
-                        <label style="font-weight: bold; color: #000066; cursor: pointer; display: flex; align-items: center;">
-                            <input type="checkbox" id="block-en-chk" ${myGifs.block.enabled ? "checked" : ""}>
-                            <i class="fas fa-chess-rook" style="margin-left:5px; margin-right:3px;"></i> ${loc("GRR.sheet.weapon.hasBlock")} ${testBtnHtml('block')}
-                        </label>
-                        <div id="block-main-box" style="display: none; margin-top: 5px;">
-                            <div style="display: flex;">
-                                <input type="text" id="block-def" value="${esc(myGifs.block.def)}" placeholder="${loc("GRR.sheet.weapon.successPlaceholder")}" style="flex: 1; margin-right: 3px;">
-                                <input type="text" id="block-f" value="${esc(myGifs.block.f)}" placeholder="${loc("GRR.sheet.weapon.failPlaceholder")}" style="flex: 1; margin-left: 3px;">
-                            </div>
-                            <div style="margin-top: 5px;"><label><input type="checkbox" id="block-crit-chk" ${myGifs.block.useCrit ? "checked" : ""}> <i>${loc("GRR.sheet.weapon.criticals")}</i></label></div>
-                            <div id="block-crit-box" style="display: none; margin-top: 5px; padding-left: 10px;">
-                                <div style="display: flex; align-items: center; margin-bottom: 3px;"><label style="flex: 0 0 80px; color: green;">${loc("GRR.sheet.result.success")}</label><input type="text" id="block-cs" value="${esc(myGifs.block.cs)}" placeholder="${loc("GRR.common.optional")}" style="flex: 1;"></div>
-                                <div style="display: flex; align-items: center;"><label style="flex: 0 0 80px; color: red;">${loc("GRR.sheet.result.fail")}</label><input type="text" id="block-cf" value="${esc(myGifs.block.cf)}" placeholder="${loc("GRR.common.optional")}" style="flex: 1;"></div>
-                            </div>
-                        </div>
-                    </div>`,
+                    ${WEAPON_SECTIONS.map(cfg => buildWeaponSection(cfg, myGifs[cfg.id])).join('')}`,
                     render: (dHtml) => {
                         const $d = $(dHtml);
                         const toggleBox = (chk, box) => { if($d.find(chk).prop('checked')) $d.find(box).slideDown(150); else $d.find(box).slideUp(150); };
 
-                        $d.find('#atk-crit-box').toggle($d.find('#atk-crit-chk').prop('checked'));
-                        $d.find('#parry-main-box').toggle($d.find('#parry-en-chk').prop('checked'));
-                        $d.find('#parry-crit-box').toggle($d.find('#parry-crit-chk').prop('checked'));
-                        $d.find('#block-main-box').toggle($d.find('#block-en-chk').prop('checked'));
-                        $d.find('#block-crit-box').toggle($d.find('#block-crit-chk').prop('checked'));
-
-                        $d.find('#atk-crit-chk').change(() => toggleBox('#atk-crit-chk', '#atk-crit-box'));
-                        $d.find('#parry-en-chk').change(() => toggleBox('#parry-en-chk', '#parry-main-box'));
-                        $d.find('#parry-crit-chk').change(() => toggleBox('#parry-crit-chk', '#parry-crit-box'));
-                        $d.find('#block-en-chk').change(() => toggleBox('#block-en-chk', '#block-main-box'));
-                        $d.find('#block-crit-chk').change(() => toggleBox('#block-crit-chk', '#block-crit-box'));
+                        for (const { id, hasEnable } of WEAPON_SECTIONS) {
+                            if (hasEnable) {
+                                $d.find(`#${id}-main-box`).toggle($d.find(`#${id}-en-chk`).prop('checked'));
+                                $d.find(`#${id}-en-chk`).change(() => toggleBox(`#${id}-en-chk`, `#${id}-main-box`));
+                            }
+                            $d.find(`#${id}-crit-box`).toggle($d.find(`#${id}-crit-chk`).prop('checked'));
+                            $d.find(`#${id}-crit-chk`).change(() => toggleBox(`#${id}-crit-chk`, `#${id}-crit-box`));
+                        }
 
                         $d.find('.grr-test-btn').click(function(e) {
                             e.preventDefault();
@@ -243,14 +226,20 @@
                             icon: '<i class="fas fa-save"></i>', label: loc("GRR.common.save"),
                             callback: async (dHtml) => {
                                 const $d = $(dHtml);
-                                const updatedGifs = foundry.utils.mergeObject(allWpnGifs, {
-                                    [weaponNameText]: {
-                                        atk: { def: $d.find('#atk-def').val().trim(), f: $d.find('#atk-f').val().trim(), cs: $d.find('#atk-cs').val().trim(), cf: $d.find('#atk-cf').val().trim(), useCrit: $d.find('#atk-crit-chk').prop('checked') },
-                                        parry: { enabled: $d.find('#parry-en-chk').prop('checked'), def: $d.find('#parry-def').val().trim(), f: $d.find('#parry-f').val().trim(), cs: $d.find('#parry-cs').val().trim(), cf: $d.find('#parry-cf').val().trim(), useCrit: $d.find('#parry-crit-chk').prop('checked') },
-                                        block: { enabled: $d.find('#block-en-chk').prop('checked'), def: $d.find('#block-def').val().trim(), f: $d.find('#block-f').val().trim(), cs: $d.find('#block-cs').val().trim(), cf: $d.find('#block-cf').val().trim(), useCrit: $d.find('#block-crit-chk').prop('checked') }
-                                    }
-                                });
-                                await (game.actors.get(actor.id) ?? actor).setFlag(MODULE_ID, "weapons", updatedGifs);
+                                const sections = {};
+                                for (const { id, hasEnable } of WEAPON_SECTIONS) {
+                                    const entry = {
+                                        defaultGif:     $d.find(`#${id}-def`).val().trim(),
+                                        failGif:        $d.find(`#${id}-f`).val().trim(),
+                                        critSuccessGif: $d.find(`#${id}-cs`).val().trim(),
+                                        critFailGif:    $d.find(`#${id}-cf`).val().trim(),
+                                        useCrit:        $d.find(`#${id}-crit-chk`).prop('checked'),
+                                    };
+                                    if (hasEnable) entry.enabled = $d.find(`#${id}-en-chk`).prop('checked');
+                                    sections[id] = entry;
+                                }
+                                const updatedGifs = { ...allWpnGifs, [encodeKey(weaponNameText)]: sections };
+                                await GRR_Shared.resolveActor(actor).setFlag(MODULE_ID, "weapons", updatedGifs);
                             }
                         }
                     },

@@ -27,7 +27,7 @@
   ],
   "scripts": [
     "settings.js",
-    "shared-logic.js",
+    "api.js",
     "sheet.js",
     "chat.js"
   ],

@@ -1,17 +1,17 @@
 (() => {
-    const MODULE_ID = "gurps-roll-reactions";
-    const esc = (s) => String(s || "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
-    const loc = (key) => game.i18n.localize(key);
-    const fmt = (key, data) => game.i18n.format(key, data);
-
-    const closeStaleReactionsDialog = (actorName) => {
-        const title = fmt("GRR.sheet.universalTitle", { name: actorName });
-        for (const app of Object.values(ui.windows)) {
-            if (app.title === title) { app.close(); break; }
-        }
-    };
-
     Hooks.once("init", () => {
+        const MODULE_ID = GRR_Shared.MODULE_ID;
+        const esc = GRR_Shared.escapeHTML;
+        const loc = GRR_Shared.loc;
+        const fmt = GRR_Shared.fmt;
+
+        const closeStaleReactionsDialog = (actorName) => {
+            const title = fmt("GRR.sheet.universalTitle", { name: actorName });
+            for (const app of Object.values(ui.windows)) {
+                if (app.title === title) { app.close(); break; }
+            }
+        };
+
         game.settings.register(MODULE_ID, "enableGlow", {
             name: "GRR.settings.enableGlow.name",
             hint: "GRR.settings.enableGlow.hint",
@@ -26,21 +26,17 @@
             label: "GRR.settings.manage.label",
             hint: "GRR.settings.manage.hint",
             icon: "fas fa-sliders-h",
-            type: class GurpsManageReactions extends FormApplication {
+            type: class GurpsManageReactions extends Application {
                 render() {
                     const actorsWithReactions = game.actors.contents.filter(a => {
-                        const skills = a.getFlag(MODULE_ID, "skills") || {};
-                        const weapons = a.getFlag(MODULE_ID, "weapons") || {};
-                        const universal = a.getFlag(MODULE_ID, "universal") || {};
+                        const { skills, weapons, universal } = GRR_Shared.getActorReactions(a);
                         return Object.keys(skills).length > 0 || Object.keys(weapons).length > 0 || Object.keys(universal).length > 0;
                     });
 
                     const noReactionsHtml = `<p style="color: #777; font-style: italic; text-align: center; padding: 10px 0;">${loc("GRR.manage.noReactions")}</p>`;
 
                     const buildReactionsList = (actor) => {
-                        const skills = actor.getFlag(MODULE_ID, "skills") || {};
-                        const weapons = actor.getFlag(MODULE_ID, "weapons") || {};
-                        const universal = actor.getFlag(MODULE_ID, "universal") || {};
+                        const { skills, weapons, universal } = GRR_Shared.getActorReactions(actor);
 
                         const buildSection = (titleKey, data, type) => {
                             const keys = Object.keys(data);
@@ -50,7 +46,7 @@
                                     <div style="font-weight: bold; font-size: 0.85em; color: #555; margin-bottom: 4px; text-transform: uppercase;">${loc(titleKey)}</div>
                                     ${keys.map(k => `
                                         <div style="display: flex; align-items: center; padding: 4px 6px; border-bottom: 1px solid #eee;">
-                                            <span style="flex: 1;">${esc(k)}</span>
+                                            <span style="flex: 1;">${esc(GRR_Shared.decodeKey(k))}</span>
                                             <a class="grr-delete-entry" data-type="${type}" data-key="${esc(k)}" style="color: #8b0000; cursor: pointer;" title="${loc("GRR.common.delete")}"><i class="fas fa-times"></i></a>
                                         </div>
                                     `).join('')}
@@ -104,6 +100,7 @@
                                 const key = $(this).data('key');
                                 const actor = game.actors.get($html.find('#grr-actor-select').val());
                                 if (!actor) return;
+                                // key is already encodeKey'd (dots → ·) — matches the stored flag key exactly
                                 await actor.setFlag(MODULE_ID, type, { [`-=${key}`]: null });
                                 $(this).closest('div[style]').remove();
                             });
@@ -112,9 +109,7 @@
                                 e.preventDefault();
                                 const actor = game.actors.get($html.find('#grr-actor-select').val());
                                 if (!actor) return;
-                                if (actor.getFlag(MODULE_ID, "skills")) await actor.unsetFlag(MODULE_ID, "skills");
-                                if (actor.getFlag(MODULE_ID, "weapons")) await actor.unsetFlag(MODULE_ID, "weapons");
-                                if (actor.getFlag(MODULE_ID, "universal")) await actor.unsetFlag(MODULE_ID, "universal");
+                                await GRR_Shared.clearActorReactions(actor);
                                 closeStaleReactionsDialog(actor.name);
                                 $html.find('#grr-reactions-list').html(noReactionsHtml);
                                 ui.notifications.info(fmt("GRR.manage.actorCleared", { name: actor.name }));
@@ -134,11 +129,8 @@
                                             callback: async () => {
                                                 let count = 0;
                                                 for (const actor of game.actors.contents) {
-                                                    let updated = false;
-                                                    if (actor.getFlag(MODULE_ID, "skills")) { await actor.unsetFlag(MODULE_ID, "skills"); updated = true; }
-                                                    if (actor.getFlag(MODULE_ID, "universal")) { await actor.unsetFlag(MODULE_ID, "universal"); updated = true; }
-                                                    if (actor.getFlag(MODULE_ID, "weapons")) { await actor.unsetFlag(MODULE_ID, "weapons"); updated = true; }
-                                                    if (updated) { closeStaleReactionsDialog(actor.name); count++; }
+                                                    const cleared = await GRR_Shared.clearActorReactions(actor);
+                                                    if (cleared) { closeStaleReactionsDialog(actor.name); count++; }
                                                 }
                                                 $html.find('#grr-reactions-list').html(noReactionsHtml);
                                                 ui.notifications.info(fmt("GRR.manage.allCleared", { count }));
