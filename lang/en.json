@@ -63,5 +63,10 @@
   "GRR.result.critFail": "Critical Failure!",
   "GRR.result.success": "Success",
   "GRR.result.fail": "Failure",
-  "GRR.chat.imageError": "Reaction failed to load"
+  "GRR.chat.imageError": "Reaction failed to load",
+  "GRR.io.export": "Export",
+  "GRR.io.import": "Import",
+  "GRR.io.importError": "Import failed: could not parse file.",
+  "GRR.io.importInvalid": "Import failed: file contains no reaction data.",
+  "GRR.io.importSuccess": "Reactions for \"{name}\" imported successfully."
 }

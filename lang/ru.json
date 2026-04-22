@@ -63,5 +63,10 @@
   "GRR.result.critFail": "Критический Провал!",
   "GRR.result.success": "Успех",
   "GRR.result.fail": "Провал",
-  "GRR.chat.imageError": "Реакция не загрузилась"
+  "GRR.chat.imageError": "Реакция не загрузилась",
+  "GRR.io.export": "Экспорт",
+  "GRR.io.import": "Импорт",
+  "GRR.io.importError": "Ошибка импорта: не удалось разобрать файл.",
+  "GRR.io.importInvalid": "Ошибка импорта: файл не содержит данных реакций.",
+  "GRR.io.importSuccess": "Реакции персонажа \"{name}\" импортированы."
 }
