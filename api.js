@@ -43,7 +43,7 @@ window.GRR_Shared = {
   buildMediaHTML: (url, borderStyle) => {
     return `
             <div class="gurps-skill-media-wrapper" style="margin-top: 8px; border-top: 1px dashed #999; padding-top: 5px; text-align: center;">
-                <img src="${GRR_Shared.escapeHTML(url)}" style="max-width: 100%; height: auto; border-radius: 6px; ${borderStyle}" alt="${game.i18n.localize("GRR.chat.imageError")}">
+                <img src="${GRR_Shared.escapeHTML(url)}" style="max-width: 100%; height: auto; border-radius: 6px; ${borderStyle}" alt="${GRR_Shared.loc("GRR.chat.imageError")}">
             </div>
         `;
   },
@@ -139,7 +139,7 @@ window.GRR_Shared = {
 
           // Cascading fallback logic
           let finalUrl = urls.def;
-          if (isFail && urls.f) finalUrl = urls.f;
+          if ((isFail || isCritFail) && urls.f) finalUrl = urls.f;
           if (urls.useCrit !== false) {
             if (isCritSuccess && urls.cs) finalUrl = urls.cs;
             if (isCritFail && urls.cf) finalUrl = urls.cf;

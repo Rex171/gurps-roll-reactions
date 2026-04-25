@@ -21,133 +21,185 @@
       default: true
     });
 
-    game.settings.registerMenu(MODULE_ID, "manageReactionsMenu", {
-      name: "GRR.settings.manage.name",
-      label: "GRR.settings.manage.label",
-      hint: "GRR.settings.manage.hint",
-      icon: "fas fa-sliders-h",
-      type: class GurpsManageReactions extends Application {
-        render() {
-          const actorsWithReactions = game.actors.contents.filter(a => {
-            const { skills, weapons, universal } = GRR_Shared.getActorReactions(a);
-            return Object.keys(skills).length > 0 || Object.keys(weapons).length > 0 || Object.keys(universal).length > 0;
-          });
+    const openManageDialog = () => {
+      const actorsWithReactions = game.actors.contents.filter(a => {
+        const { skills, weapons, universal } = GRR_Shared.getActorReactions(a);
+        return Object.keys(skills).length > 0 || Object.keys(weapons).length > 0 || Object.keys(universal).length > 0;
+      });
 
-          const noReactionsHtml = `<p style="color: #777; font-style: italic; text-align: center; padding: 10px 0;">${loc("GRR.manage.noReactions")}</p>`;
+      const noReactionsHtml = `<p style="color: #777; font-style: italic; text-align: center; padding: 10px 0;">${loc("GRR.manage.noReactions")}</p>`;
 
-          const buildReactionsList = (actor) => {
-            const { skills, weapons, universal } = GRR_Shared.getActorReactions(actor);
+      const buildReactionsList = (actor) => {
+        const { skills, weapons, universal } = GRR_Shared.getActorReactions(actor);
+        const buildSection = (titleKey, data, type) => {
+          const keys = Object.keys(data);
+          if (!keys.length) return '';
+          return `<div style="margin-bottom: 8px;">
+            <div style="font-weight: bold; font-size: 0.85em; color: #555; margin-bottom: 4px; text-transform: uppercase;">${loc(titleKey)}</div>
+            ${keys.map(k => `
+              <div style="display: flex; align-items: center; padding: 4px 6px; border-bottom: 1px solid #eee;">
+                <span style="flex: 1;">${esc(GRR_Shared.decodeKey(k))}</span>
+                <a class="grr-delete-entry" data-type="${type}" data-key="${esc(k)}" style="color: #8b0000; cursor: pointer;" title="${loc("GRR.common.delete")}"><i class="fas fa-times"></i></a>
+              </div>`).join('')}
+          </div>`;
+        };
+        const html = buildSection("GRR.manage.section.skills", skills, 'skills') +
+          buildSection("GRR.manage.section.weapons", weapons, 'weapons') +
+          buildSection("GRR.manage.section.universal", universal, 'universal');
+        return html || noReactionsHtml;
+      };
 
-            const buildSection = (titleKey, data, type) => {
-              const keys = Object.keys(data);
-              if (!keys.length) return '';
-              return `
-                                <div style="margin-bottom: 8px;">
-                                    <div style="font-weight: bold; font-size: 0.85em; color: #555; margin-bottom: 4px; text-transform: uppercase;">${loc(titleKey)}</div>
-                                    ${keys.map(k => `
-                                        <div style="display: flex; align-items: center; padding: 4px 6px; border-bottom: 1px solid #eee;">
-                                            <span style="flex: 1;">${esc(GRR_Shared.decodeKey(k))}</span>
-                                            <a class="grr-delete-entry" data-type="${type}" data-key="${esc(k)}" style="color: #8b0000; cursor: pointer;" title="${loc("GRR.common.delete")}"><i class="fas fa-times"></i></a>
-                                        </div>
-                                    `).join('')}
-                                </div>
-                            `;
-            };
+      const emptyMsg = `<p style="color: #777; font-style: italic; text-align: center; padding: 10px 0;">${loc("GRR.manage.noActors")}</p>`;
+      const actorOptions = actorsWithReactions.length
+        ? actorsWithReactions.map(a => `<option value="${a.id}">${esc(a.name)}</option>`).join('')
+        : `<option disabled>${loc("GRR.manage.noActors")}</option>`;
+      const firstActor = actorsWithReactions[0];
+      const initialList = firstActor ? buildReactionsList(firstActor) : emptyMsg;
 
-            const html = buildSection("GRR.manage.section.skills", skills, 'skills') +
-              buildSection("GRR.manage.section.weapons", weapons, 'weapons') +
-              buildSection("GRR.manage.section.universal", universal, 'universal');
-
-            return html || noReactionsHtml;
+      const dlg = new Dialog({
+        title: loc("GRR.manage.title"),
+        content: `
+          <div style="margin-bottom: 8px;">
+            <select id="grr-actor-select" style="width: 100%;" ${!actorsWithReactions.length ? 'disabled' : ''}>
+              ${actorOptions}
+            </select>
+          </div>
+          <div id="grr-reactions-list" style="max-height: 280px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 6px; margin-bottom: 10px;">
+            ${initialList}
+          </div>
+          <div style="display: flex; gap: 6px;">
+            <button type="button" id="grr-clear-actor" style="flex: 1;" ${!actorsWithReactions.length ? 'disabled' : ''}><i class="fas fa-user-times"></i> ${loc("GRR.manage.clearActor")}</button>
+            <button type="button" id="grr-clear-all" style="flex: 1; color: darkred;"><i class="fas fa-trash"></i> ${loc("GRR.manage.clearAll")}</button>
+          </div>`,
+        render: (html) => {
+          const $html = $(html);
+          const refreshList = () => {
+            const actor = game.actors.get($html.find('#grr-actor-select').val());
+            if (actor) $html.find('#grr-reactions-list').html(buildReactionsList(actor));
           };
+          $html.find('#grr-actor-select').change(refreshList);
+          $html.on('click', '.grr-delete-entry', async function (e) {
+            e.preventDefault();
+            const type = $(this).data('type');
+            const key = $(this).data('key');
+            const actor = game.actors.get($html.find('#grr-actor-select').val());
+            if (!actor) return;
+            await actor.setFlag(MODULE_ID, type, { [`-=${key}`]: null });
+            $(this).closest('div[style]').remove();
+          });
+          $html.find('#grr-clear-actor').click(async (e) => {
+            e.preventDefault();
+            const actor = game.actors.get($html.find('#grr-actor-select').val());
+            if (!actor) return;
+            await GRR_Shared.clearActorReactions(actor);
+            closeStaleReactionsDialog(actor.name);
+            $html.find('#grr-reactions-list').html(noReactionsHtml);
+            ui.notifications.info(fmt("GRR.manage.actorCleared", { name: actor.name }));
+          });
+          $html.find('#grr-clear-all').click(async (e) => {
+            e.preventDefault();
+            new Dialog({
+              title: loc("GRR.manage.clearAllTitle"),
+              content: `<p style="color: darkred; font-weight: bold;">${loc("GRR.common.warning")}</p>
+                <p>${loc("GRR.manage.clearAllConfirm")}</p>
+                <p>${loc("GRR.common.irreversible")}</p>`,
+              buttons: {
+                yes: {
+                  icon: '<i class="fas fa-trash"></i>',
+                  label: loc("GRR.manage.clearAll"),
+                  callback: async () => {
+                    let count = 0;
+                    for (const actor of game.actors.contents) {
+                      const cleared = await GRR_Shared.clearActorReactions(actor);
+                      if (cleared) { closeStaleReactionsDialog(actor.name); count++; }
+                    }
+                    $html.find('#grr-reactions-list').html(noReactionsHtml);
+                    ui.notifications.info(fmt("GRR.manage.allCleared", { count }));
+                  }
+                },
+                no: { icon: '<i class="fas fa-times"></i>', label: loc("GRR.common.cancel") }
+              },
+              default: "no"
+            }).render(true);
+          });
+        },
+        buttons: { close: { label: loc("GRR.common.close") } },
+        default: "close"
+      }, { width: 420, resizable: true });
+      dlg.render(true);
+      setTimeout(() => dlg.bringToTop?.(), 100);
+    };
 
-          const emptyMsg = `<p style="color: #777; font-style: italic; text-align: center; padding: 10px 0;">${loc("GRR.manage.noActors")}</p>`;
-          const actorOptions = actorsWithReactions.length
-            ? actorsWithReactions.map(a => `<option value="${a.id}">${esc(a.name)}</option>`).join('')
-            : `<option disabled>${loc("GRR.manage.noActors")}</option>`;
-          const firstActor = actorsWithReactions[0];
-          const initialList = firstActor ? buildReactionsList(firstActor) : emptyMsg;
+    GRR_Shared.openManageDialog = openManageDialog;
 
-          new Dialog({
-            title: loc("GRR.manage.title"),
-            content: `
-                            <div style="margin-bottom: 8px;">
-                                <select id="grr-actor-select" style="width: 100%;" ${!actorsWithReactions.length ? 'disabled' : ''}>
-                                    ${actorOptions}
-                                </select>
-                            </div>
-                            <div id="grr-reactions-list" style="max-height: 280px; overflow-y: auto; border: 1px solid #ddd; border-radius: 4px; padding: 6px; margin-bottom: 10px;">
-                                ${initialList}
-                            </div>
-                            <div style="display: flex; gap: 6px;">
-                                <button type="button" id="grr-clear-actor" style="flex: 1;" ${!actorsWithReactions.length ? 'disabled' : ''}><i class="fas fa-user-times"></i> ${loc("GRR.manage.clearActor")}</button>
-                                <button type="button" id="grr-clear-all" style="flex: 1; color: darkred;"><i class="fas fa-trash"></i> ${loc("GRR.manage.clearAll")}</button>
-                            </div>
-                        `,
-            render: (html) => {
-              const $html = $(html);
+    // Inject button into settings config — fallback for Foundry v13
+    const injectManageBtn = ($root) => {
+      if ($root.find(`[data-key="${MODULE_ID}.manageReactionsMenu"]`).length) return;
+      if ($root.find('.grr-manage-injected').length) return;
 
-              const refreshList = () => {
-                const actor = game.actors.get($html.find('#grr-actor-select').val());
-                if (actor) $html.find('#grr-reactions-list').html(buildReactionsList(actor));
-              };
+      const $btn = $(`
+        <div class="form-group grr-manage-injected" style="display:grid;">
+          <label>${loc("GRR.settings.manage.name")}</label>
+          <button type="button" style="grid-column:2; grid-row:1;"><i class="fas fa-sliders-h"></i> ${loc("GRR.settings.manage.label")}</button>
+          <p class="hint">${loc("GRR.settings.manage.hint")}</p>
+        </div>`);
+      $btn.find('button').on('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        try { openManageDialog(); } catch (err) { console.error("GRR | openManageDialog error:", err); }
+      });
 
-              $html.find('#grr-actor-select').change(refreshList);
+      // v13: find the actual content section (not nav/tab links)
+      const $section = $root.find(
+        `section[data-tab="${MODULE_ID}"], div.tab[data-tab="${MODULE_ID}"], fieldset[data-category="${MODULE_ID}"]`
+      ).first();
+      if ($section.length) {
+        const $list = $section.find('.settings-list').first();
+        ($list.length ? $list : $section).append($btn);
+        return;
+      }
 
-              $html.on('click', '.grr-delete-entry', async function (e) {
-                e.preventDefault();
-                const type = $(this).data('type');
-                const key = $(this).data('key');
-                const actor = game.actors.get($html.find('#grr-actor-select').val());
-                if (!actor) return;
-                // key is already encodeKey'd (dots → ·) — matches the stored flag key exactly
-                await actor.setFlag(MODULE_ID, type, { [`-=${key}`]: null });
-                $(this).closest('div[style]').remove();
-              });
+      // v12: settings are in one flat .settings-list, module name is an <h2 data-module="...">
+      // Insert AFTER the header, not inside it
+      const $header = $root.find(`[data-module="${MODULE_ID}"]`).first();
+      if ($header.length) {
+        $header.after($btn);
+        return;
+      }
+    };
 
-              $html.find('#grr-clear-actor').click(async (e) => {
-                e.preventDefault();
-                const actor = game.actors.get($html.find('#grr-actor-select').val());
-                if (!actor) return;
-                await GRR_Shared.clearActorReactions(actor);
-                closeStaleReactionsDialog(actor.name);
-                $html.find('#grr-reactions-list').html(noReactionsHtml);
-                ui.notifications.info(fmt("GRR.manage.actorCleared", { name: actor.name }));
-              });
-
-              $html.find('#grr-clear-all').click(async (e) => {
-                e.preventDefault();
-                new Dialog({
-                  title: loc("GRR.manage.clearAllTitle"),
-                  content: `<p style="color: darkred; font-weight: bold;">${loc("GRR.common.warning")}</p>
-                                              <p>${loc("GRR.manage.clearAllConfirm")}</p>
-                                              <p>${loc("GRR.common.irreversible")}</p>`,
-                  buttons: {
-                    yes: {
-                      icon: '<i class="fas fa-trash"></i>',
-                      label: loc("GRR.manage.clearAll"),
-                      callback: async () => {
-                        let count = 0;
-                        for (const actor of game.actors.contents) {
-                          const cleared = await GRR_Shared.clearActorReactions(actor);
-                          if (cleared) { closeStaleReactionsDialog(actor.name); count++; }
-                        }
-                        $html.find('#grr-reactions-list').html(noReactionsHtml);
-                        ui.notifications.info(fmt("GRR.manage.allCleared", { count }));
-                      }
-                    },
-                    no: { icon: '<i class="fas fa-times"></i>', label: loc("GRR.common.cancel") }
-                  },
-                  default: "no"
-                }).render(true);
-              });
-            },
-            buttons: { close: { label: loc("GRR.common.close") } },
-            default: "close"
-          }, { width: 420, resizable: true }).render(true);
-        }
-      },
-      restricted: true
+    Hooks.on("renderSettingsConfig", (app, html) => {
+      if (!game.user.isGM) return;
+      const $html = html instanceof jQuery ? html : $(html);
+      injectManageBtn($html);
+      $html.on('click', 'li, nav a, [data-category], [data-tab]', () => {
+        setTimeout(() => injectManageBtn($html), 100);
+      });
     });
+
+    // registerMenu in try/catch — may throw silently in Foundry v13
+    try {
+      game.settings.registerMenu(MODULE_ID, "manageReactionsMenu", {
+        name: "GRR.settings.manage.name",
+        label: "GRR.settings.manage.label",
+        hint: "GRR.settings.manage.hint",
+        icon: "fas fa-sliders-h",
+        type: class GurpsManageReactions extends Application {
+          static get defaultOptions() {
+            return foundry.utils.mergeObject(super.defaultOptions, {
+              id: "grr-manage-reactions",
+              title: "Manage Reactions",
+            });
+          }
+          render(force = false, options = {}) {
+            openManageDialog();
+            return this;
+          }
+        },
+        restricted: true
+      });
+    } catch (e) {
+      console.warn("GRR | registerMenu failed:", e.message);
+    }
   });
 })();

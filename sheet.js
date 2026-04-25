@@ -50,7 +50,7 @@
         <div class="gurps-media-row" style="border: 1px solid #777; padding: 8px; margin-bottom: 8px; border-radius: 5px; background: rgba(0,0,0,0.05); transition: background 0.2s;">
             <div style="display: flex; margin-bottom: 5px; align-items: center;">
                 <b style="flex: 0 0 100px;">${loc("GRR.sheet.triggerLabel")}</b>
-                <input type="text" class="trigger-name" value="${esc(trigger)}" placeholder="${loc("GRR.sheet.triggerPlaceholder")}" style="flex: 1;">
+                <input type="text" class="trigger-name" value="${esc(GRR_Shared.decodeKey(trigger))}" placeholder="${loc("GRR.sheet.triggerPlaceholder")}" style="flex: 1;">
                 ${testBtnHtml('universal')}
                 <a class="remove-media-btn" style="color: darkred; margin-left: 10px; cursor: pointer;" title="${loc("GRR.common.delete")}"><i class="fas fa-trash"></i></a>
             </div>
@@ -66,8 +66,7 @@
     let rowsHtml = "";
     for (const [trigger, urls] of Object.entries(currentFlags)) rowsHtml += buildUniversalRow(trigger, urls);
 
-    let dlg;
-    dlg = new Dialog({
+    const dlg = new Dialog({
       title: fmt("GRR.sheet.universalTitle", { name: actor.name }),
       content: `
                 <div style="margin-bottom: 10px;"><p style="font-size: 0.9em; color: #444;">${loc("GRR.sheet.universalDesc")}</p></div>
@@ -140,7 +139,7 @@
             const newFlags = {};
             $(html).find('.gurps-media-row').each(function () {
               const trigger = $(this).find('.trigger-name').val().trim();
-              if (trigger) newFlags[trigger] = { defaultGif: $(this).find('.trigger-def').val().trim(), failGif: $(this).find('.trigger-f').val().trim(), critSuccessGif: $(this).find('.trigger-cs').val().trim(), critFailGif: $(this).find('.trigger-cf').val().trim() };
+              if (trigger) newFlags[encodeKey(trigger)] = { defaultGif: $(this).find('.trigger-def').val().trim(), failGif: $(this).find('.trigger-f').val().trim(), critSuccessGif: $(this).find('.trigger-cs').val().trim(), critFailGif: $(this).find('.trigger-cf').val().trim() };
             });
             const payload = {};
             for (let oldKey of Object.keys(currentFlags)) if (!newFlags.hasOwnProperty(oldKey)) payload[`-=${oldKey}`] = null;
